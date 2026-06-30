@@ -33,14 +33,13 @@ Simulation interactive en temps réel de la lentille gravitationnelle autour d'u
 
 Le ray marching résout les géodésiques de la lumière dans la métrique de Schwarzschild :
 
-```
-dx/dλ = v
-dv/dλ = -ALPHA·M·x/|x|³ - 3M·(v·x)/|x|³ · v
-```
+$$\frac{d\vec{x}}{d\lambda} = \vec{v}$$
 
-Le terme `-3M·(v·x)/|x|³ · v` représente la déviation transversale de la lumière, essentielle pour reproduire correctement la lentille gravitationnelle.
+$$\frac{d\vec{v}}{d\lambda} = -\frac{\text{ALPHA} \cdot M \cdot \vec{x}}{|\vec{x}|^3} - \frac{3M \cdot (\vec{v} \cdot \vec{x})}{|\vec{x}|^3} \cdot \vec{v}$$
 
-L'impact parameter critique est `b_crit = 3√3·M·(ALPHA/3)`, au-delà duquel les rayons sont capturés par le trou noir.
+Le terme $-3M \cdot (\vec{v} \cdot \vec{x}) / |\vec{x}|^3 \cdot \vec{v}$ représente la déviation transversale de la lumière, essentielle pour reproduire correctement la lentille gravitationnelle.
+
+L'impact parameter critique est $b_\text{crit} = 3\sqrt{3} \cdot M \cdot (\text{ALPHA}/3)$, au-delà duquel les rayons sont capturés par le trou noir.
 
 ## Rendu
 
