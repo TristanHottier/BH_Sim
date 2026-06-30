@@ -2,6 +2,10 @@
 
 Interactive real-time simulation of gravitational lensing around a Schwarzschild black hole, rendered entirely on GPU via WebGL2.
 
+This project visualises how gravity bends light near a non-rotating black hole, producing the iconic photon ring, gravitational arcs, and the dark "shadow" at the centre. The accretion disk displays Doppler beaming, gravitational redshift, and procedural turbulence.
+
+> **Inspired by**: the first image of M87* by the Event Horizon Telescope (2019) and the black hole sequence in *Interstellar* (2014), based on physicist Kip Thorne's equations.
+
 ## Table of Contents
 
 - [Preview](#preview)
@@ -10,17 +14,26 @@ Interactive real-time simulation of gravitational lensing around a Schwarzschild
   - [Light Geodesics](#light-geodesics)
   - [Simulation Parameters](#simulation-parameters)
   - [Why ALPHA = 8.0?](#why-alpha--80)
+  - [Design Choices: Physics vs. Visuals](#design-choices-physics-vs-visuals)
   - [Impact Parameter and Capture](#impact-parameter-and-capture)
 - [Rendering](#rendering)
   - [Ray Marching (Backtrace)](#ray-marching-backtrace)
+  - [Adaptive Step Sizing](#adaptive-step-sizing)
   - [Accretion Disk](#accretion-disk)
+    - [Temperature Profile](#temperature-profile)
+    - [Doppler Beaming](#doppler-beaming)
+    - [Gravitational Redshift](#gravitational-redshift)
+    - [Turbulence](#turbulence)
+    - [Photon Ring Boost](#photon-ring-boost)
   - [Background: Stars and Cosmic Filaments](#background-stars-and-cosmic-filaments)
+  - [Shadow Effects](#shadow-effects)
   - [Performance](#performance)
 - [Controls](#controls)
 - [Running the Simulation](#running-the-simulation)
   - [GitHub Pages (recommended)](#github-pages-recommended)
   - [Docker (local)](#docker-local)
   - [Local (any static server)](#local-any-static-server)
+- [Known Limitations](#known-limitations)
 - [Stack](#stack)
 - [References](#references)
 
@@ -32,7 +45,7 @@ Interactive real-time simulation of gravitational lensing around a Schwarzschild
 
 ### Schwarzschild Metric
 
-The black hole is modeled by the Schwarzschild metric, the exact solution to Einstein's field equations for a spherical, non-rotating, uncharged body:
+The black hole is modelled by the Schwarzschild metric, the exact solution to Einstein's field equations for a spherical, non-rotating, uncharged body:
 
 $$ds^2 = -\left(1 - \frac{r_s}{r}\right) c^2 dt^2 + \left(1 - \frac{r_s}{r}\right)^{-1} dr^2 + r^2 d\Omega^2$$
 
@@ -76,7 +89,7 @@ This simulation balances physical accuracy with visual clarity. Some parameters 
 - **$\text{ALPHA} = 8.0$** instead of the physically correct $3$: enhances lensing visibility.
 - **$\text{DISK}_\text{IN} = 3.0$** matches the ISCO (Innermost Stable Circular Orbit) for Schwarzschild: $r_\text{ISCO} = 6M = 3r_s$. This is the closest radius at which matter can orbit stably.
 - **$\text{DISK}_\text{OUT} = 25.0$**: not physically derived. Chosen to fill the field of view at typical camera distances without reaching the ray marching limit ($MAX_R = 500$).
-- **$\text{DISK}_\text{SIGMA} = 0.10$**: thin disk approximation. Real accretion disks have $H/r \sim 0.01–0.1$, so this is within a realistic range for a geometrically thin disk.
+- **$\text{DISK}_\text{SIGMA} = 0.10$**: thin disk approximation. Real accretion disks have H/r ~ 0.01–0.1, so this is within a realistic range for a geometrically thin disk.
 - **$M = 0.5$** ($r_s = 1.0$): arbitrary mass scale. The simulation is dimensionless — only ratios matter.
 
 ### Impact Parameter and Capture
@@ -95,40 +108,125 @@ Each pixel launches a ray from the camera toward the black hole. The ray is inte
 
 $$\frac{d\vec{x}}{d\lambda} = \vec{v}, \quad \frac{d\vec{v}}{d\lambda} = -\frac{\text{ALPHA} \cdot M \cdot \vec{x}}{|\vec{x}|^3} - \frac{3M \cdot (\vec{v} \cdot \vec{x})}{|\vec{x}|^3} \cdot \vec{v}$$
 
-The step $h$ is adaptive: smaller near the black hole (0.01) and larger far away (1.5), to optimize performance.
+The acceleration has two components:
+1. **Radial**: $-\text{ALPHA} \cdot M \cdot \vec{x} / r^3$ — gravitational attraction (scaled by ALPHA).
+2. **Tangential**: $-3M \cdot (\vec{v} \cdot \vec{x}) / r^3 \cdot \vec{v}$ — transverse deflection from the curvature of spacetime. This component is zero in Newtonian gravity and is essential for producing realistic lensing arcs.
+
+### Adaptive Step Sizing
+
+The integration step $h$ adapts based on distance to the black hole:
+
+| Distance $r$ | Step $h$ | Reason |
+|-------------|---------|--------|
+| $r < 2.0$ | 0.01 | Near the event horizon — rays bend sharply |
+| $2.0 < r < 3.0$ | 0.015 | Photon sphere region — high curvature |
+| $3.0 < r < 6.0$ | 0.03 | ISCO to inner disk — moderate curvature |
+| $6.0 < r < 12.0$ | 0.15 | Mid-disk — rays nearly straight |
+| $12.0 < r < 30.0$ | 0.6 | Outer disk — minimal bending |
+| $r > 30.0$ | 1.5 | Far field — rays are essentially straight lines |
+
+This ensures accuracy near the black hole while keeping distant rays fast to compute.
 
 ### Accretion Disk
 
-The disk lies in the equatorial plane ($y = 0$), with:
+The disk lies in the equatorial plane ($y = 0$), with a Gaussian vertical profile. It is tilted by the `uDiskPsi` slider (rotation around the X axis).
 
-- **Temperature**: $T \propto (1 - r/r_\text{out})^{3/4}$ — hotter inside (Stefan-Boltzmann law for an accretion disk)
-- **Color**: blackbody — white-hot inside, orange/red outside
-- **Doppler beaming**: $((1 + \beta\cos\varphi)/(1 - \beta\cos\varphi))^3$ — the approaching side is brighter (blueshifted)
-- **Gravitational redshift**: $\sqrt{1 - r_s/r}$ — light loses energy escaping the gravitational well
-- **Turbulence**: FBM (Fractional Brownian Motion) noise with rotation — realistic (Keplerian) or cinematic (rigid body) mode
+#### Temperature Profile
+
+Following the standard thin-disk model (Shakura–Sunyaev):
+
+$$T(r) \propto \left(1 - \frac{r_\text{in}}{r}\right)^{3/4}$$
+
+The inner edge is hottest (white-hot, ~10⁶ K equivalent) and the outer edge is coolest (orange/red). Temperature maps to a blackbody color:
+
+| Temperature | Color |
+|-----------|-------|
+| Hot (inner) | White-blue |
+| Medium | Yellow-white |
+| Cool (outer) | Orange-red |
+
+#### Doppler Beaming
+
+The approaching side of the disk (moving toward the camera) appears brighter and bluer; the receding side appears dimmer and redder. The full relativistic Doppler factor is:
+
+$$\delta = \left(\frac{1 + \beta\cos\varphi}{1 - \beta\cos\varphi}\right)^3$$
+
+where:
+- $\beta = \sqrt{GM/r}$ is the orbital velocity at radius $r$
+- $\varphi$ is the angle between the gas velocity and the line of sight
+- The cubic power accounts for both the frequency shift and the photon arrival rate
+
+This is computed dynamically per intersection point, using the tangent velocity vector transformed into world space (accounting for disk inclination).
+
+#### Gravitational Redshift
+
+Light climbing out of the gravitational well loses energy:
+
+$$z = \sqrt{1 - \frac{r_s}{r}}$$
+
+This further reddens the outer disk and adds a subtle color modulation to the overall emission.
+
+#### Turbulence
+
+Procedural turbulence simulates the chaotic gas dynamics of a real accretion disk. Two modes are available:
+
+1. **Cinematic (default)**: rigid-body rotation — the entire disk rotates as one unit. Produces dramatic, clearly visible spiral structures.
+2. **Realistic (Kepler)**: differential rotation — inner regions orbit faster than outer regions ($\omega \propto r^{-3/2}$). More physically accurate but subtler.
+
+Both use **FBM (Fractional Brownian Motion)** noise with 5 octaves, rotated at each octave for organic-looking structures. A spiral overlay adds arm-like features.
+
+#### Photon Ring Boost
+
+Rays that complete approximately one orbit around the black hole (total angle between $0.75\pi$ and $1.25\pi$) receive a brightness boost:
+
+$$\text{boost} = 1 + 4 \cdot \left(1 - \frac{|n_\text{orbits} - 1|}{0.25}\right)$$
+
+This simulates the photon ring — a bright ring of light formed by photons that orbit the black hole once before escaping to the camera.
 
 ### Background: Stars and Cosmic Filaments
 
-- **Stars**: point noise on a 3D grid (hash per cell)
-- **Cosmic filaments**: a blue band reminiscent of the Milky Way's galactic structure, generated with sinusoidal modulations. These represent large-scale cosmic web filaments — the faint, glowing structures that permeate intergalactic space and serve as the distant backdrop for the simulation.
+- **Stars**: procedurally generated on a 3D grid using hash-based noise per cell. Three layers of stars with varying brightness and density produce a natural-looking field. Stars have a slight blue tint to stand out against disk reflections.
+- **Cosmic filaments**: a blue band across the sky, reminiscent of the Milky Way. Generated with layered sinusoidal modulations representing large-scale cosmic web filaments — the faint, glowing structures that permeate intergalactic space.
+- **Nebula**: a violet-pink nebula overlay adds depth to the background.
+
+### Shadow Effects
+
+Two visual effects frame the black hole shadow:
+
+1. **Shadow edge glow**: a thin blue-white fringe just outside the shadow boundary, simulating photons that skim the photon sphere.
+2. **Inner shadow glow**: a subtle blue fringe just inside the shadow, from photons on near-capture trajectories.
+3. **Shadow border** (toggleable): a thin white circle marking the shadow boundary, useful for visual reference.
 
 ### Performance
 
-- Resolution reduced to 50% for performance
-- Tone mapping: $c \mapsto c / (1 + c)$
-- Optional CCD grid (pixelated effect)
+- Resolution scaled to 50% of screen size (capped at 1× DPR) for playable FPS.
+- Tone mapping: $c \mapsto c / (1 + c)$ — compresses bright values to prevent clipping.
+- CCD grid overlay: subtle pixel grid lines for a scientific instrument aesthetic.
+- Emissive disk glow: radial projection of the disk edges adds a warm halo without full bloom post-processing.
+- Early-out conditions: rays hitting the event horizon or exceeding `MAX_R = 500` terminate immediately.
 
 ## Controls
 
 | Action | Control |
 |--------|---------|
-| θ/φ rotation | Click + drag |
-| Zoom | Mouse wheel |
+| θ/φ rotation | Click + drag / single-finger drag |
+| Zoom | Mouse wheel / pinch-to-zoom (2 fingers) |
 | Reset | R |
 | Pause | Space |
-| Disk inclination | Slider |
+| Disk inclination | Slider (tilt around X axis) |
 | Realistic rotation mode | Kepler checkbox |
 | Shadow border | Checkbox |
+
+### Camera Parameters (default)
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| $\theta$ | 100° | Azimuthal angle (around Z axis) |
+| $\phi$ | 80° | Polar angle (from Z axis) — near edge-on |
+| Distance | 45.0 | Camera distance from black hole |
+| FOV | 60° | Field of view |
+
+Zoom range: 35–100 units. Polar angle range: 0.001°–179.999° (0° to 180°).
 
 ## Running the Simulation
 
@@ -165,11 +263,25 @@ Access at `http://localhost:8080`.
 
 > **Note**: Opening `index.html` directly via `file://` will not work, as the GLSL shaders are loaded via `fetch()`.
 
+## Known Limitations
+
+This is a **visual simulation**, not a scientific tool. Several approximations are made:
+
+1. **Schwarzschild metric only**: the black hole is non-rotating. Real astrophysical black holes spin (Kerr metric), which produces frame-dragging and an asymmetric shadow.
+2. **ALPHA = 8.0**: the gravitational curvature is 2.7× stronger than GR predicts. This enhances visual impact but is not physical.
+3. **No ray deflection at the disk**: rays passing through the disk are not bent by its mass (the disk's gravity is negligible compared to the black hole's).
+4. **No radiative transfer**: the disk is a thin emissive surface, not a volumetric medium. Self-occultation (the back side of the disk hidden by the black hole) is approximated but not fully modelled.
+5. **No polarization**: real black hole images carry polarisation information from synchrotron emission. This simulation computes intensity only.
+6. **Single-pass rendering**: no multi-pass bloom or anti-aliasing. The glow effect is a heuristic approximation.
+7. **200 RK4 steps max**: some rays may not converge fully, especially those making multiple orbits. This is a performance trade-off.
+
 ## Stack
 
-- HTML / CSS / Vanilla JavaScript
-- WebGL2 (GLSL ES 300)
-- Nginx (Docker)
+- **HTML5** — semantic structure with viewport meta for mobile support
+- **CSS3** — fullscreen canvas, HUD with auto-fade, responsive media queries (mobile-first)
+- **Vanilla JavaScript** — WebGL2 context management, camera controls, render loop
+- **WebGL2 (GLSL ES 300)** — vertex shader (fullscreen quad), fragment shader (all physics + rendering)
+- **Nginx** — Docker container for static file serving
 
 ## References
 
@@ -178,3 +290,6 @@ Access at `http://localhost:8080`.
 - Luminet, J.P. (1979). Image of a spherical black hole with spherical accretion disk. *Astronomy & Astrophysics*, 75, 228–235.
 - Bardeen, J.M. (1973). Timelike and null geodesics in the Kerr metric. In *Black Holes (Les Houches Sessions)*.
 - Peebles, P.J.E. & Ratra, B. (2003). The cosmological constant and dark energy. *Reviews of Modern Physics*, 75(2), 559.
+- Event Horizon Telescope Collaboration (2019). First M87 Event Horizon Telescope Results. I. The Shadow of the Supermassive Black Hole. *The Astrophysical Journal Letters*, 875(1), L1.
+- Shakura, N.I. & Sunyaev, R.A. (1973). Black holes in binary systems. Observational appearance. *Astronomy & Astrophysics*, 24, 337–355.
+- Thorne, K. (1995). *Black Holes and Time Warps*. W.W. Norton & Company.
