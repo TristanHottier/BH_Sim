@@ -119,8 +119,8 @@ float diskTurbulenceKepler(vec2 diskPos, float time) {
 // Facteur de turbulence : rotation cinématique (bloc rigide)
 float diskTurbulenceCine(vec2 diskPos, float time) {
     float t = time + uTimeOffset;
-    float ca = cos(-t * 1.5);
-    float sa = sin(-t * 1.5);
+    float ca = cos(-t * 0.75);
+    float sa = sin(-t * 0.75);
     vec2 rotPos = vec2(
         diskPos.x * ca - diskPos.y * sa,
         diskPos.x * sa + diskPos.y * ca

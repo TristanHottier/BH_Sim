@@ -197,17 +197,37 @@ canvas.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 // ── Touch controls ───────────────────────────────────────────────────────────
+let lastPinchDist = 0;
 canvas.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) { isDragging = true; lastMouse.x = e.touches[0].clientX; lastMouse.y = e.touches[0].clientY; }
-}, { passive: true });
+    if (e.touches.length === 1) {
+        isDragging = true;
+        lastMouse.x = e.touches[0].clientX;
+        lastMouse.y = e.touches[0].clientY;
+    } else if (e.touches.length === 2) {
+        isDragging = false;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastPinchDist = Math.sqrt(dx * dx + dy * dy);
+    }
+}, { passive: false });
 canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
-    if (!isDragging || e.touches.length !== 1) return;
-    const dx = e.touches[0].clientX - lastMouse.x;
-    const dy = e.touches[0].clientY - lastMouse.y;
-    camTheta -= dx * 0.005;
-    camPhi = Math.max(0.001, Math.min(Math.PI - 0.001, camPhi + dy * 0.005));
-    lastMouse.x = e.touches[0].clientX; lastMouse.y = e.touches[0].clientY;
+    if (e.touches.length === 2) {
+        // Pinch zoom
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const pinchDist = Math.sqrt(dx * dx + dy * dy);
+        const delta = pinchDist - lastPinchDist;
+        camDist *= 1.0 - delta * 0.005;
+        camDist = Math.max(35.0, Math.min(100.0, camDist));
+        lastPinchDist = pinchDist;
+    } else if (isDragging && e.touches.length === 1) {
+        const dx = e.touches[0].clientX - lastMouse.x;
+        const dy = e.touches[0].clientY - lastMouse.y;
+        camTheta -= dx * 0.005;
+        camPhi = Math.max(0.001, Math.min(Math.PI - 0.001, camPhi + dy * 0.005));
+        lastMouse.x = e.touches[0].clientX; lastMouse.y = e.touches[0].clientY;
+    }
 }, { passive: false });
 canvas.addEventListener('touchend', () => { isDragging = false; });
 
