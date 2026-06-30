@@ -460,6 +460,38 @@ vec4 rayMarch(vec2 uv) {
         color = vec3(0.0);
     }
 
+  // ═══ Glow émissif du disque ═══
+    {
+        // Projeter le disque (anneau dans plan incliné) sur l'écran.
+        // Le disque est dans le plan y=0, incliné par uDiskPsi autour de X.
+        // Normal du plan incliné : n = (0, cosψ, sinψ)
+        vec3 diskNormal = vec3(0.0, cos(uDiskPsi), sin(uDiskPsi));
+        vec3 dir = normalize(pos - ro);
+        // Distance signée du rayon au plan du disque
+        float distPlane = dot(dir, diskNormal);
+        // Si le rayon est proche du plan du disque, projeter sur l'écran
+        if (abs(distPlane) < 0.08) {
+            // Point d'intersection du rayon avec le plan du disque
+            float tPlane = -dot(ro, diskNormal) / dot(dir, diskNormal);
+            if (tPlane > 0.0) {
+                vec3 hitPlane = ro + tPlane * dir;
+                // Remettre dans le repère non incliné pour mesurer le rayon
+                float c = cos(-uDiskPsi);
+                float s = sin(-uDiskPsi);
+                float rx = hitPlane.x;
+                float ry = hitPlane.y * c - hitPlane.z * s;
+                float rz = hitPlane.y * s + hitPlane.z * c;
+                float r = length(vec2(rx, rz));
+                // Bord intérieur et extérieur du disque
+                float innerGlow = smoothstep(DISK_IN * 0.85, DISK_IN * 1.05, r) * smoothstep(DISK_IN * 1.5, DISK_IN * 1.05, r);
+                float outerGlow = smoothstep(DISK_OUT * 1.05, DISK_OUT * 0.85, r) * smoothstep(DISK_OUT * 1.5, DISK_OUT * 0.85, r);
+                float glow = (innerGlow + outerGlow) * 0.12;
+                vec3 glowColor = mix(vec3(1.0, 0.6, 0.15), vec3(1.0, 0.35, 0.05), 1.0 - r / DISK_OUT) * glow;
+                color += glowColor;
+            }
+        }
+    }
+
   // ═══ Bord d'ombre + photon sphere glow ═══
     {
         float screenDist = length(xy);
