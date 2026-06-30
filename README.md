@@ -76,7 +76,7 @@ This simulation balances physical accuracy with visual clarity. Some parameters 
 - **$\text{ALPHA} = 8.0$** instead of the physically correct $3$: enhances lensing visibility.
 - **$\text{DISK}_\text{IN} = 3.0$** matches the ISCO (Innermost Stable Circular Orbit) for Schwarzschild: $r_\text{ISCO} = 6M = 3r_s$. This is the closest radius at which matter can orbit stably.
 - **$\text{DISK}_\text{OUT} = 25.0$**: not physically derived. Chosen to fill the field of view at typical camera distances without reaching the ray marching limit ($MAX_R = 500$).
-- **$\text{DISK}_\text{SIGMA} = 0.10$**: thin disk approximation. Real accretion disks have $H/r ~ 0.01–0.1$, so this is within a realistic range for a geometrically thin disk.
+- **$\text{DISK}_\text{SIGMA} = 0.10$**: thin disk approximation. Real accretion disks have $H/r \sim 0.01–0.1$, so this is within a realistic range for a geometrically thin disk.
 - **$M = 0.5$** ($r_s = 1.0$): arbitrary mass scale. The simulation is dimensionless — only ratios matter.
 
 ### Impact Parameter and Capture
