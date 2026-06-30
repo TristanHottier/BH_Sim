@@ -363,23 +363,25 @@ vec4 rayMarch(vec2 uv) {
                 vec2 diskUV = hitDisk.xz;
                 float turb = diskTurbulence(diskUV, uTime);
                 float turbFactor = 0.6 + 0.4 * turb; // 0.6..1.0
-                float vOrb = sqrt(GM / hr);
-                float doppler = clamp(1.0 + vOrb * sin(angle) * 0.4, 0.3, 2.5);
                 float redshift = sqrt(max(0.01, 1.0 - M / hr));
-                vec3 discCol = blackbody(temp) * profile * doppler * redshift * 10.0 * turbFactor;
+                vec3 discCol = blackbody(temp) * profile * redshift * 10.0 * turbFactor;
 
 // ═══ Doppler + beaming relativiste dynamique ═══
                 // Facteur Doppler : ((1 + β·cosφ) / (1 - β·cosφ))³
                 // β = vitesse orbitale normalisée
                 // cosφ = projection de la vitesse tangentielle sur la ligne de visée
                 // La vitesse tangentielle du gaz est perpendiculaire au rayon radial :
-                //   v_tan ∝ (-sin(angle), 0, cos(angle))
-                // La ligne de visée depuis le point d'émission vers la caméra :
-                //   dir_cam = normalize(ro - hit)
-                // cosφ = dot(v_tan, dir_cam) / |v_tan|
-                float beta = length(vec3(-sin(angle), 0.0, cos(angle))) * sqrt(GM / hr);
+                //   v_tan ∝ (-sin(angle), 0, cos(angle)) dans le repère du disque
+                // Il faut transformer vTangent dans le repère monde (rotation X par uDiskPsi)
+                float beta = sqrt(GM / hr);
                 beta = clamp(beta, 0.0, 0.5);
-                vec3 vTangent = normalize(vec3(-sin(angle), 0.0, cos(angle)));
+                vec3 vTangentDisk = vec3(-sin(angle), 0.0, cos(angle));
+                // Appliquer la même rotation X que diskRotate pour passer en monde
+                vec3 vTangent = vec3(
+                    vTangentDisk.x,
+                    vTangentDisk.y * cos(uDiskPsi) - vTangentDisk.z * sin(uDiskPsi),
+                    vTangentDisk.y * sin(uDiskPsi) + vTangentDisk.z * cos(uDiskPsi)
+                );
                 vec3 dirCam = normalize(ro - hit);
                 float cosPhi = dot(vTangent, dirCam);
                 float dopplerFactor = pow((1.0 + beta * cosPhi) / (1.0 - beta * cosPhi), 3.0);
