@@ -1,15 +1,15 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-//  Trou Noir de Schwarzschild — Lentille gravitationnelle 2D
+//  Schwarzschild Black Hole — 2D Gravitational Lensing
 //
-//  Ray marching en arrière (backtrace) dans la métrique de Schwarzschild.
-//  CCD : chaque bloc 5×5 pixels partage le même rayon.
+//  Backtrace ray marching in the Schwarzschild metric.
+//  CCD: each 5×5 pixel block shares the same ray.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const canvas = document.getElementById('glCanvas');
 const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
 
 if (!gl) {
-    document.body.innerHTML = '<h1 style="color:#f88;text-align:center;margin-top:40vh">WebGL 2 requis</h1>';
+    document.body.innerHTML = '<h1 style="color:#f88;text-align:center;margin-top:40vh">WebGL 2 required</h1>';
     throw new Error('WebGL2 required');
 }
 
@@ -87,7 +87,7 @@ Promise.all([
 }).catch(err => {
     console.error('Failed to load shaders:', err);
     document.body.innerHTML = `<h1 style="color:#f88;text-align:center;margin-top:40vh;font-family:sans-serif">
-        Erreur chargement shaders.<br>Exécuter via serveur local.<br><small>${err.message}</small></h1>`;
+        Shader load error.<br>Run via local server.<br><small>${err.message}</small></h1>`;
 });
 
 // ── Fullscreen quad ──────────────────────────────────────────────────────────
@@ -164,7 +164,7 @@ function render() {
 function init() {
     prog = createProgram(vertexSrc, fragmentSrc);
     if (!prog) {
-        document.body.innerHTML = '<h1 style="color:#f88;text-align:center;margin-top:40vh">Compilation shader échouée</h1>';
+        document.body.innerHTML = '<h1 style="color:#f88;text-align:center;margin-top:40vh">Shader compilation failed</h1>';
         return;
     }
     const l = {};

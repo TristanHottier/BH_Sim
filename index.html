@@ -1,31 +1,31 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Trou Noir — Lentille Gravitationnelle</title>
+    <title>Black Hole — Gravitational Lensing</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <canvas id="glCanvas"></canvas>
     <div id="hud">
-        <div id="title">Trou Noir de Schwarzschild <span class="subtitle">Lentille gravitationnelle • d²u/dφ² + u = 3Mu²</span></div>
+        <div id="title">Schwarzschild Black Hole <span class="subtitle">Gravitational Lensing • d²u/dφ² + u = 3Mu²</span></div>
         <div id="stats">
             <span id="fps">FPS: 0</span>
             <span id="camInfo">θ: 0.0° φ: 0.0° d: 22.0</span>
         </div>
         <div id="controls">
-            <p><strong>Clic / Toucher + glisser</strong> — Rotation θ/φ</p>
-            <p><strong>Molette / Pincement</strong> — Zoom</p>
-            <p><strong>R</strong> — Réinitialiser</p>
-            <p><strong>Espace</strong> — Pause</p>
+            <p><strong>Click / Touch + drag</strong> — θ/φ rotation</p>
+            <p><strong>Scroll / Pinch</strong> — Zoom</p>
+            <p><strong>R</strong> — Reset</p>
+            <p><strong>Space</strong> — Pause</p>
         </div>
         <div id="sliders">
-            <label>Inclinaison disque <input type="range" id="sliderPsiDisk" min="-180" max="180" step="1" value="0"> <span id="valPsiDisk">0.0°</span></label>
-            <label><input type="checkbox" id="checkRealistic"> Rotation réaliste (Kepler)</label>
-            <label><input type="checkbox" id="checkShadow"> Bordure ombre</label>
+            <label>Disk tilt <input type="range" id="sliderPsiDisk" min="-180" max="180" step="1" value="0"> <span id="valPsiDisk">0.0°</span></label>
+            <label><input type="checkbox" id="checkRealistic"> Realistic rotation (Kepler)</label>
+            <label><input type="checkbox" id="checkShadow"> Shadow border</label>
             
         </div>
     </div>
