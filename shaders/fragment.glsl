@@ -22,7 +22,7 @@ out vec4 fragColor;
 #define M            0.5
 #define ALPHA        8.0
 #define EH           1.0
-#define DISK_IN      3.0
+#define DISK_IN      10.0
 #define DISK_OUT     25.0
 #define DISK_SIGMA   0.10
 #define CCD          1.0
