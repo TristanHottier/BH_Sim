@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trou Noir — Lentille Gravitationnelle</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="glCanvas"></canvas>
+    <div id="hud">
+        <div id="title">Trou Noir de Schwarzschild <span class="subtitle">Lentille gravitationnelle • d²u/dφ² + u = 3Mu²</span></div>
+        <div id="stats">
+            <span id="fps">FPS: 0</span>
+            <span id="camInfo">θ: 0.0° φ: 0.0° d: 22.0</span>
+        </div>
+        <div id="controls">
+            <p><strong>Clic + glisser</strong> — Rotation θ/φ</p>
+            <p><strong>Molette</strong> — Zoom</p>
+            <p><strong>R</strong> — Réinitialiser</p>
+            <p><strong>Espace</strong> — Pause</p>
+        </div>
+        <div id="sliders">
+            <label>Inclinaison disque <input type="range" id="sliderPsiDisk" min="-180" max="180" step="1" value="0"> <span id="valPsiDisk">0.0°</span></label>
+            <label><input type="checkbox" id="checkRealistic"> Rotation réaliste (Kepler)</label>
+            <label><input type="checkbox" id="checkShadow"> Bordure ombre</label>
+            
+        </div>
+    </div>
+    <script src="main.js"></script>
+</body>
+</html>
