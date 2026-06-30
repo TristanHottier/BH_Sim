@@ -98,13 +98,40 @@ The disk lies in the equatorial plane ($y = 0$), with:
 | Realistic rotation mode | Kepler checkbox |
 | Shadow border | Checkbox |
 
-## Docker
+## Running the Simulation
+
+### GitHub Pages (recommended)
+
+The simulation is hosted directly on GitHub Pages — no setup required:
+
+**https://tristanhottier.github.io/BH_Sim/**
+
+### Docker (local)
 
 ```bash
 docker compose up --build
 ```
 
 Access at `http://localhost:8080`.
+
+### Local (any static server)
+
+Serve the project root with any HTTP server:
+
+```bash
+# Python
+python -m http.server 8080
+
+# Node.js
+npx serve .
+
+# PHP
+php -S localhost:8080
+```
+
+Access at `http://localhost:8080`.
+
+> **Note**: Opening `index.html` directly via `file://` will not work, as the GLSL shaders are loaded via `fetch()`.
 
 ## Stack
 
