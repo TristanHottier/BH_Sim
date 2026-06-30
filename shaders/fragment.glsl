@@ -25,7 +25,6 @@ out vec4 fragColor;
 #define DISK_IN      3.0
 #define DISK_OUT     25.0
 #define DISK_SIGMA   0.10
-#define CCD          1.0
 #define MAX_R        500.0
 #define GM           0.5
 #define TURB_N       6.0
@@ -515,13 +514,7 @@ vec4 rayMarch(vec2 uv) {
 
  
 
-    // ── Grille CCD ──
-    vec2 cellL = fract(px / CCD);
-    float bX = step(cellL.x, 0.02) + step(1.0 - 0.02, cellL.x);
-    float bY = step(cellL.y, 0.02) + step(1.0 - 0.02, cellL.y);
-    color += vec3(max(bX, bY) * 0.03);
-
-    // ── Tone mapping ──
+     // ── Tone mapping ──
     color = color / (1.0 + color);
     color = clamp(color, 0.0, 1.0);
 

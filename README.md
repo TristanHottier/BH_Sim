@@ -201,7 +201,6 @@ Two visual effects frame the black hole shadow:
 
 - Resolution scaled to 50% of screen size (capped at 1× DPR) for playable FPS.
 - Tone mapping: $c \mapsto c / (1 + c)$ — compresses bright values to prevent clipping.
-- CCD grid overlay: subtle pixel grid lines for a scientific instrument aesthetic.
 - Emissive disk glow: radial projection of the disk edges adds a warm halo without full bloom post-processing.
 - Early-out conditions: rays hitting the event horizon or exceeding `MAX_R = 500` terminate immediately.
 

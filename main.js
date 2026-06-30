@@ -2,7 +2,7 @@
 //  Schwarzschild Black Hole — 2D Gravitational Lensing
 //
 //  Backtrace ray marching in the Schwarzschild metric.
-//  CCD: each 5×5 pixel block shares the same ray.
+//  Full-resolution ray per pixel.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const canvas = document.getElementById('glCanvas');
