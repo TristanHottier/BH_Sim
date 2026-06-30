@@ -2,6 +2,28 @@
 
 Interactive real-time simulation of gravitational lensing around a Schwarzschild black hole, rendered entirely on GPU via WebGL2.
 
+## Table of Contents
+
+- [Preview](#preview)
+- [Physics](#physics)
+  - [Schwarzschild Metric](#schwarzschild-metric)
+  - [Light Geodesics](#light-geodesics)
+  - [Simulation Parameters](#simulation-parameters)
+  - [Why ALPHA = 8.0?](#why-alpha--80)
+  - [Impact Parameter and Capture](#impact-parameter-and-capture)
+- [Rendering](#rendering)
+  - [Ray Marching (Backtrace)](#ray-marching-backtrace)
+  - [Accretion Disk](#accretion-disk)
+  - [Background: Stars and Cosmic Filaments](#background-stars-and-cosmic-filaments)
+  - [Performance](#performance)
+- [Controls](#controls)
+- [Running the Simulation](#running-the-simulation)
+  - [GitHub Pages (recommended)](#github-pages-recommended)
+  - [Docker (local)](#docker-local)
+  - [Local (any static server)](#local-any-static-server)
+- [Stack](#stack)
+- [References](#references)
+
 ## Preview
 
 ![Black Hole Simulation](screenshot.png)
