@@ -20,6 +20,7 @@ let camDist  = 45.0;
 let diskPsi  = 0.0;
 let realisticMode = false;
 let showShadow = false;
+let fullRes = false;
 
 let paused   = false;
 let simTime  = 0.0;
@@ -102,9 +103,10 @@ gl.bindVertexArray(null);
 
 // ── Resize ────────────────────────────────────────────────────────────────────
 function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 1);
-    canvas.width  = Math.floor(window.innerWidth * dpr * 0.5);
-    canvas.height = Math.floor(window.innerHeight * dpr * 0.5);
+    const dpr = Math.min(window.devicePixelRatio || 1, fullRes ? 2 : 1);
+    const scale = fullRes ? 1.0 : 0.5;
+    canvas.width  = Math.floor(window.innerWidth * dpr * scale);
+    canvas.height = Math.floor(window.innerHeight * dpr * scale);
     gl.viewport(0, 0, canvas.width, canvas.height);
 }
 window.addEventListener('resize', resize);
@@ -252,6 +254,7 @@ const sliderPsiDisk    = document.getElementById('sliderPsiDisk');
 const valPsiDisk       = document.getElementById('valPsiDisk');
 const checkRealistic   = document.getElementById('checkRealistic');
 const checkShadow      = document.getElementById('checkShadow');
+const checkFullRes     = document.getElementById('checkFullRes');
 
 sliderPsiDisk.addEventListener('input', () => {
     diskPsi = parseFloat(sliderPsiDisk.value) * Math.PI / 180.0;
@@ -270,6 +273,11 @@ checkRealistic.addEventListener('change', () => {
 checkShadow.addEventListener('change', () => {
     showShadow = checkShadow.checked;
     gl.uniform1f(loc.uShowShadow, showShadow ? 1.0 : 0.0);
+});
+
+checkFullRes.addEventListener('change', () => {
+    fullRes = checkFullRes.checked;
+    resize();
 });
 
 

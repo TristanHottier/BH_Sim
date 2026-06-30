@@ -13,6 +13,7 @@ canvas:active { cursor: grabbing; }
 #sliders label { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
 #sliders input[type="range"] { flex: 1; max-width: 140px; accent-color: #5577aa; height: 4px; cursor: pointer; }
 #sliders span { min-width: 36px; text-align: right; color: #889; }
+#sliders .warning { color: #cc6633; font-size: 9px; }
 #hud.fade { opacity: 0.15; transition: opacity 1.5s ease; }
 #hud:hover, #hud.active { opacity: 1 !important; transition: opacity 0.3s ease; }
 
@@ -26,6 +27,7 @@ canvas:active { cursor: grabbing; }
     #sliders { font-size: 11px; }
     #sliders input[type="range"] { max-width: 180px; }
     #sliders span { min-width: 42px; }
+    #sliders .warning { font-size: 10px; }
 }
 
 /* Desktop */
@@ -38,4 +40,5 @@ canvas:active { cursor: grabbing; }
     #sliders { font-size: 11px; }
     #sliders input[type="range"] { max-width: 180px; }
     #sliders span { min-width: 42px; }
+    #sliders .warning { font-size: 10px; }
 }
