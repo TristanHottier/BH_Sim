@@ -55,7 +55,7 @@ The $3Mu^2$ term is the relativistic correction — absent in Newtonian mechanic
 | $M$ | 0.5 | Black hole mass (geometric units, $r_s = 2M = 1.0$) |
 | $\text{ALPHA}$ | 8.0 | Gravitational curvature factor |
 | $b_\text{crit}$ | $\approx 6.93$ | Critical impact parameter (capture threshold) |
-| $\text{DISK}_\text{IN}$ | 1.1 | Inner radius of the accretion disk |
+| $\text{DISK}_\text{IN}$ | 3.0 | Inner radius of the accretion disk (ISCO) |
 | $\text{DISK}_\text{OUT}$ | 25.0 | Outer radius of the accretion disk |
 | $\text{DISK}_\text{SIGMA}$ | 0.10 | Vertical disk thickness (Gaussian) |
 | RK4 steps | 200 max | Maximum integration steps |
@@ -68,6 +68,16 @@ In exact general relativity, the curvature factor would be $\text{ALPHA} = 3$ (c
 This is an aesthetic trade-off: with $\text{ALPHA} = 3$, gravitational arcs are more subtle and less visible on screen. With $\text{ALPHA} = 8.0$, we get well-defined multiple images and photon rings.
 
 > **Note**: The shadow radius is proportional to ALPHA. With ALPHA = 8, the capture radius is $b_\text{crit} = 3\sqrt{3} \cdot M \cdot \frac{\text{ALPHA}}{3} \approx 6.93$.
+
+### Design Choices: Physics vs. Visuals
+
+This simulation balances physical accuracy with visual clarity. Some parameters are deliberately adjusted for aesthetic reasons:
+
+- **$\text{ALPHA} = 8.0$** instead of the physically correct $3$: enhances lensing visibility.
+- **$\text{DISK}_\text{IN} = 3.0$** matches the ISCO (Innermost Stable Circular Orbit) for Schwarzschild: $r_\text{ISCO} = 6M = 3r_s$. This is the closest radius at which matter can orbit stably.
+- **$\text{DISK}_\text{OUT} = 25.0$**: not physically derived. Chosen to fill the field of view at typical camera distances without reaching the ray marching limit ($MAX_R = 500$).
+- **$\text{DISK}_\text{SIGMA} = 0.10$**: thin disk approximation. Real accretion disks have $H/r \sim 0.01$–$0.1$, so this is within a realistic range for a geometrically thin disk.
+- **$M = 0.5$** ($r_s = 1.0$): arbitrary mass scale. The simulation is dimensionless — only ratios matter.
 
 ### Impact Parameter and Capture
 
