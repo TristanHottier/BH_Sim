@@ -22,7 +22,7 @@ out vec4 fragColor;
 #define M            0.5
 #define ALPHA        8.0
 #define EH           1.0
-#define DISK_IN      1.125
+#define DISK_IN      3.0   // ISCO = 6M for Schwarzschild (M=0.5 → 3.0)
 #define DISK_OUT     25.0
 #define DISK_SIGMA   0.10
 #define MAX_R        500.0
@@ -382,12 +382,14 @@ vec4 rayMarch(vec2 uv) {
                 vec2 diskUV = hitDisk.xz;
                 float turb = diskTurbulence(diskUV, uTime);
                 float turbFactor = 0.6 + 0.4 * turb; // 0.6..1.0
-                float redshift = sqrt(max(0.01, 1.0 - M / hr));
-                vec3 discCol = blackbody(temp) * profile * redshift * 10.0 * turbFactor;
+                vec3 discCol = blackbody(temp) * profile * 10.0 * turbFactor;
 
 // ═══ Doppler + beaming relativiste dynamique ═══
-                float beta = sqrt(GM / hr);
-                beta = clamp(beta, 0.0, 0.5);
+                // Orbital velocity in Schwarzschild (measured by static observer):
+                //   β = √(M / (r - 2M))   — diverges at photon sphere r = 2M
+                // Newtonian would be √(M/r), underestimating near ISCO by ~40%
+                float beta = sqrt(M / (hr - 2.0 * M));
+                beta = clamp(beta, 0.0, 0.95);
                 vec3 vTangentDisk = vec3(-sin(angle), 0.0, cos(angle));
                 vec3 vTangent = vec3(
                     vTangentDisk.x,
@@ -532,7 +534,8 @@ vec4 rayMarch(vec2 uv) {
   // ═══ Cercle blanc délimitant l'ombre du trou noir ═══
     if (uShowShadow > 0.5) {
         float screenDist = length(xy);
-        float R_shadow = b_crit / length(ro);
+        // Same screen-space conversion as the shadow edge glow above
+        float R_shadow = b_crit / (length(ro) * tanFov);
         float r_normalized = screenDist / R_shadow;
         float border = smoothstep(0.985, 0.995, r_normalized) * smoothstep(1.005, 0.995, r_normalized);
         color += vec3(1.0) * border;
