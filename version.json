@@ -1,6 +1,6 @@
 {
-  "version": "1.0.2",
-  "commit": "aef42ad",
+  "version": "1.0.3",
+  "commit": "c8942cf",
   "date": "2026-07-01",
-  "description": "Physics audit v2 — Planck blackbody, combined g-factor, aberration, transparent disk, correct sky projection"
+  "description": "Fix disk over-brightness — remove *10.0 gain, clamp beaming to [0.001, 5.0]"
 }
