@@ -401,8 +401,15 @@ vec4 rayMarch(vec2 uv) {
             if (hr >= DISK_IN && hr <= DISK_OUT) {
                 rayInteracted = true;
 
-                // Novikov-Thorne temperature profile: T ∝ (1 - r_in/r)^(3/4)
-                float temp = pow(1.0 - DISK_IN / hr, 0.75);
+                // Novikov-Thorne temperature profile: T ∝ r^(-3/4) * (1 - sqrt(r_in/r))^(1/4)
+                // Inner edge (r = r_in): T = 0 (inner boundary condition)
+                // Peaks at r ≈ 1.36 * r_in, then decreases as r^(-3/4)
+                // Normalized to [0, 1] over [DISK_IN, DISK_OUT]
+                float nr = pow(hr, -0.75) * pow(1.0 - sqrt(DISK_IN / hr), 0.25);
+                float t = clamp(nr / 0.162, 0.0, 1.0);
+                float temp = t;
+
+                // Emissivity profile: slight inner brightening, outer drop-off
                 float profile = pow(1.0 - DISK_IN / hr, 0.1) * (1.0 - smoothstep(0.90, 0.995, DISK_IN / hr));
                 float angle = atan(hitDisk.z, hitDisk.x);
 
