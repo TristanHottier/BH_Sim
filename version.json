@@ -1,6 +1,6 @@
 {
-  "version": "1.1.8",
-  "commit": "1a33086",
+  "version": "1.1.9",
+  "commit": "2a58187",
   "date": "2026-07-01",
-  "description": "Sync version.json to v1.1.7"
+  "description": "Shadow border empirical b_crit correction"
 }
