@@ -1,6 +1,6 @@
 {
-  "version": "1.1.16",
+  "version": "1.2.0",
   "commit": "HEAD",
   "date": "2026-07-01",
-  "description": "Increase ray marching steps 200→900, optimize adaptive stepping, add orbit safeguard — fixes missing back-side accretion disk at edge-on view"
+  "description": "Physics overhaul: fix Doppler aberration sign, remove double-counted post-marching deflection, cache sin/cos for disk tilt, add orbit safeguard, delta-time animation, loading state, pause indicator, corrected documentation"
 }

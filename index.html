@@ -9,12 +9,12 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <canvas id="glCanvas"></canvas>
+    <canvas id="glCanvas" role="img" aria-label="Real-time simulation of gravitational lensing around a Schwarzschild black hole"></canvas>
     <div id="hud">
         <div id="title">Schwarzschild Black Hole <span class="subtitle">Gravitational Lensing • d²u/dφ² + u = 3Mu²</span></div>
         <div id="stats">
             <span id="fps">FPS: 0</span>
-            <span id="version" class="version-badge">v1.0.0</span>
+            <span id="version" class="version-badge">v?.?.?</span>
             <span id="camInfo">θ: 0.0° φ: 0.0° d: 22.0</span>
         </div>
         <div id="controls">
@@ -26,11 +26,10 @@
         <div id="sliders">
             <label>Disk tilt <input type="range" id="sliderPsiDisk" min="-180" max="180" step="1" value="0"> <span id="valPsiDisk">0.0°</span></label>
             <label><input type="checkbox" id="checkRealistic"> Realistic rotation (Kepler)</label>
-            
             <label><input type="checkbox" id="checkFullRes"> Full resolution <span class="warning">⚠ GPU heavy</span></label>
-            
         </div>
     </div>
+    <div id="loading">Compiling shaders…</div>
     <script src="main.js"></script>
 </body>
 </html>

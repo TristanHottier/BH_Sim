@@ -14,12 +14,11 @@ if (!gl) {
 }
 
 // ── Camera ────────────────────────────────────────────────────────────────────
-let camTheta = 100.0 * 3.14159265359 / 180.0;
-let camPhi   = 80.0 * 3.14159265359 / 180.0;
+let camTheta = 100.0 * Math.PI / 180.0;
+let camPhi   = 80.0 * Math.PI / 180.0;
 let camDist  = 45.0;
 let diskPsi  = 0.0;
 let realisticMode = false;
-// showShadow removed — shadow border feature removed
 let fullRes = false;
 
 let paused   = false;
@@ -43,8 +42,6 @@ function resetHudFade() {
 resetHudFade();
 
 // ── Version system ────────────────────────────────────────────────────────────
-// Fetches version.json at startup, updates #version badge.
-// Falls back to "v?.?.?" if fetch fails (offline / file://).
 const VERSION_TAG = document.getElementById('version');
 let appVersion = 'v?.?.?';
 let appCommit  = '?';
@@ -59,7 +56,6 @@ function setVersion(v, commit) {
     console.log(`BH_Sim ${v} (${commit})`);
 }
 
-// Try to load version.json from the server
 fetch('version.json')
     .then(r => r.ok ? r.json() : Promise.reject('not found'))
     .then(meta => {
@@ -68,8 +64,6 @@ fetch('version.json')
         setVersion(ver, short);
     })
     .catch(() => {
-        // Fallback: try to infer version from the #version element's textContent
-        // which was baked into index.html as a static placeholder
         if (VERSION_TAG && VERSION_TAG.textContent && VERSION_TAG.textContent.startsWith('v')) {
             setVersion(VERSION_TAG.textContent, '?');
         }
@@ -118,6 +112,9 @@ Promise.all([
     vertexSrc = vs;
     fragmentSrc = fs;
     init();
+    // Hide loading overlay
+    const loading = document.getElementById('loading');
+    if (loading) loading.classList.add('hidden');
 }).catch(err => {
     console.error('Failed to load shaders:', err);
     document.body.innerHTML = `<h1 style="color:#f88;text-align:center;margin-top:40vh;font-family:sans-serif">
@@ -146,12 +143,17 @@ window.addEventListener('resize', resize);
 
 // ── Render loop ──────────────────────────────────────────────────────────────
 let prog, loc;
+let lastFrameTime = performance.now();
 
-function render() {
+function render(now) {
     resetHudFade();
 
+    // Delta-time animation (frame-rate independent)
+    const dt = Math.min((now - lastFrameTime) / 1000, 0.1); // cap at 100ms
+    lastFrameTime = now;
+
     if (!paused) {
-        simTime += 0.016;
+        simTime += dt;
     }
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -171,26 +173,24 @@ function render() {
     gl.uniform3fv(loc.uCamPos, camPos);
     gl.uniform1f(loc.uDiskPsi, diskPsi);
     gl.uniform1f(loc.uRealistic, realisticMode ? 1.0 : 0.0);
-    gl.uniform1f(loc.uTimeOffset, 0.0);
+    // uTimeOffset: freeze turbulence in realistic mode
+    gl.uniform1f(loc.uTimeOffset, realisticMode ? -simTime : 0.0);
     gl.uniform1f(loc.uSeed, realisticMode ? 1.0 : 0.0);
-    // uShowShadow removed
     gl.uniform1f(loc.uAspect, canvas.width / canvas.height);
     gl.uniform1f(loc.uFOV, Math.PI / 3);
     gl.uniform1f(loc.uTime, simTime);
-    gl.uniform2f(loc.uScreenPixel, gl.drawingBufferWidth, gl.drawingBufferHeight);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     // HUD
     frameCount++;
-    const now = performance.now();
-    if (now - lastFpsTime >= 500) {
+    if (now - lastFpsTime >= 250) {
         currentFps = Math.round(frameCount / ((now - lastFpsTime) / 1000));
         frameCount = 0;
         lastFpsTime = now;
         document.getElementById('fps').textContent = `FPS: ${currentFps}`;
         document.getElementById('camInfo').textContent =
-            `θ: ${(camTheta * 180 / Math.PI).toFixed(1)}°  φ: ${(camPhi * 180 / Math.PI).toFixed(1)}°  ψd: ${(diskPsi * 180 / Math.PI).toFixed(1)}°  d: ${camDist.toFixed(1)}`;
+            `θ: ${(camTheta * 180 / Math.PI).toFixed(1)}°  φ: ${(camPhi * 180 / Math.PI).toFixed(1)}°  ψd: ${(diskPsi * 180 / Math.PI).toFixed(1)}°  d: ${camDist.toFixed(1)}${paused ? ' ⏸' : ''}`;
     }
 
     requestAnimationFrame(render);
@@ -215,14 +215,17 @@ function init() {
 }
 
 // ── Mouse controls ───────────────────────────────────────────────────────────
+const CAM_SENSITIVITY = 0.005;
+
 canvas.addEventListener('mousedown', (e) => {
     if (e.button === 0) { isDragging = true; lastMouse.x = e.clientX; lastMouse.y = e.clientY; }
 });
 window.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
-    camTheta -= (e.clientX - lastMouse.x) * 0.005;
-    camPhi = Math.max(0.001, Math.min(Math.PI - 0.001, camPhi + (e.clientY - lastMouse.y) * 0.005));
+    camTheta -= (e.clientX - lastMouse.x) * CAM_SENSITIVITY;
+    camPhi = Math.max(0.001, Math.min(Math.PI - 0.001, camPhi + (e.clientY - lastMouse.y) * CAM_SENSITIVITY));
     lastMouse.x = e.clientX; lastMouse.y = e.clientY;
+    updateCamInfo();
 });
 window.addEventListener('mouseup', () => { isDragging = false; });
 canvas.addEventListener('wheel', (e) => {
@@ -248,20 +251,20 @@ canvas.addEventListener('touchstart', (e) => {
 canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
     if (e.touches.length === 2) {
-        // Pinch zoom
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const pinchDist = Math.sqrt(dx * dx + dy * dy);
         const delta = pinchDist - lastPinchDist;
-        camDist *= 1.0 - delta * 0.005;
+        camDist *= 1.0 - delta * 0.003;
         camDist = Math.max(35.0, Math.min(100.0, camDist));
         lastPinchDist = pinchDist;
     } else if (isDragging && e.touches.length === 1) {
         const dx = e.touches[0].clientX - lastMouse.x;
         const dy = e.touches[0].clientY - lastMouse.y;
-        camTheta -= dx * 0.005;
-        camPhi = Math.max(0.001, Math.min(Math.PI - 0.001, camPhi + dy * 0.005));
+        camTheta -= dx * CAM_SENSITIVITY;
+        camPhi = Math.max(0.001, Math.min(Math.PI - 0.001, camPhi + dy * CAM_SENSITIVITY));
         lastMouse.x = e.touches[0].clientX; lastMouse.y = e.touches[0].clientY;
+        updateCamInfo();
     }
 }, { passive: false });
 canvas.addEventListener('touchend', () => { isDragging = false; });
@@ -269,44 +272,46 @@ canvas.addEventListener('touchend', () => { isDragging = false; });
 // ── Keyboard ─────────────────────────────────────────────────────────────────
 window.addEventListener('keydown', (e) => {
     if (e.key === 'r' || e.key === 'R') {
-        camTheta = 100.0 * 3.14159265359 / 180.0; camPhi = 80.0 * 3.14159265359 / 180.0; camDist = 45.0; diskPsi = 0.0;
-        sliderPsiDisk.value = 0; valPsiDisk.textContent = '0.0°';
+        camTheta = 100.0 * Math.PI / 180.0;
+        camPhi = 80.0 * Math.PI / 180.0;
+        camDist = 45.0;
+        diskPsi = 0.0;
+        sliderPsiDisk.value = 0;
+        valPsiDisk.textContent = '0.0°';
+        updateCamInfo();
     }
     if (e.key === ' ') { e.preventDefault(); paused = !paused; }
 });
 
-// ── Mouse drag → update HUD camInfo live ────────────────────────────────────
-window.addEventListener('mousemove', () => {
-    if (!isDragging) return;
-    document.getElementById('camInfo').textContent =
-        `θ: ${(camTheta * 180 / Math.PI).toFixed(1)}°  φ: ${(camPhi * 180 / Math.PI).toFixed(1)}°  ψd: ${(diskPsi * 180 / Math.PI).toFixed(1)}°  d: ${camDist.toFixed(1)}`;
-});
-
- // ── Slider ψ disque ──────────────────────────────────────────────────────────
+// ── Slider ψ disque ──────────────────────────────────────────────────────────
 const sliderPsiDisk    = document.getElementById('sliderPsiDisk');
 const valPsiDisk       = document.getElementById('valPsiDisk');
 const checkRealistic   = document.getElementById('checkRealistic');
 const checkFullRes     = document.getElementById('checkFullRes');
 
+function updateCamInfo() {
+    if (document.getElementById('camInfo')) {
+        document.getElementById('camInfo').textContent =
+            `θ: ${(camTheta * 180 / Math.PI).toFixed(1)}°  φ: ${(camPhi * 180 / Math.PI).toFixed(1)}°  ψd: ${(diskPsi * 180 / Math.PI).toFixed(1)}°  d: ${camDist.toFixed(1)}${paused ? ' ⏸' : ''}`;
+    }
+}
+
 sliderPsiDisk.addEventListener('input', () => {
     diskPsi = parseFloat(sliderPsiDisk.value) * Math.PI / 180.0;
     valPsiDisk.textContent = parseFloat(sliderPsiDisk.value).toFixed(1) + '°';
-    document.getElementById('camInfo').textContent =
-        `θ: ${(camTheta * 180 / Math.PI).toFixed(1)}°  φ: ${(camPhi * 180 / Math.PI).toFixed(1)}°  ψd: ${(diskPsi * 180 / Math.PI).toFixed(1)}°  d: ${camDist.toFixed(1)}`;
+    updateCamInfo();
 });
 
 checkRealistic.addEventListener('change', () => {
     realisticMode = checkRealistic.checked;
-    gl.uniform1f(loc.uRealistic, realisticMode ? 1.0 : 0.0);
-    gl.uniform1f(loc.uTimeOffset, -simTime);
-    gl.uniform1f(loc.uSeed, realisticMode ? 1.0 : 0.0);
+    if (loc) {
+        gl.uniform1f(loc.uRealistic, realisticMode ? 1.0 : 0.0);
+        gl.uniform1f(loc.uTimeOffset, realisticMode ? -simTime : 0.0);
+        gl.uniform1f(loc.uSeed, realisticMode ? 1.0 : 0.0);
+    }
 });
-
-// checkShadow removed — shadow border feature removed
 
 checkFullRes.addEventListener('change', () => {
     fullRes = checkFullRes.checked;
     resize();
 });
-
-
