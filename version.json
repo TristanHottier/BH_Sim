@@ -1,6 +1,6 @@
 {
-  "version": "1.0.9",
-  "commit": "d94ca7c",
+  "version": "1.1.0",
+  "commit": "e2bf30f",
   "date": "2026-07-01",
-  "description": "Lens background stars — approximate deflection angle Δθ = 4M/b"
+  "description": "Shadow border aligned — exact Schwarzschild shadow angle sin(α) = (b_crit/r)*sqrt(1-2M/r)"
 }
