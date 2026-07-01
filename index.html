@@ -14,8 +14,18 @@
             content="Interactive real-time simulation of gravitational lensing around a Schwarzschild black hole rendered in WebGL2."
         />
         <meta property="og:image" content="screenshot.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="675" />
         <meta property="og:url" content="https://tristanhottier.github.io/BH_Sim/" />
         <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Black Hole — Gravitational Lensing" />
+        <meta
+            name="twitter:description"
+            content="Interactive real-time simulation of gravitational lensing around a Schwarzschild black hole rendered in WebGL2."
+        />
+        <meta name="twitter:image" content="screenshot.png" />
+        <link rel="canonical" href="https://tristanhottier.github.io/BH_Sim/" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -53,13 +63,13 @@
             </div>
             <div id="sliders">
                 <label
-                    >Disk tilt <input type="range" id="sliderPsiDisk" min="-180" max="180" step="1" value="0" />
-                    <span id="valPsiDisk">0.0°</span></label
+                    >Disk tilt <input type="range" id="sliderPsiDisk" min="-180" max="180" step="1" value="0" aria-label="Disk tilt angle" aria-describedby="valPsiDisk" />
+                    <span id="valPsiDisk" aria-hidden="true">0.0°</span></label
                 >
-                <label><input type="checkbox" id="checkRealistic" /> Realistic rotation (Kepler)</label>
+                <label><input type="checkbox" id="checkRealistic" aria-label="Toggle realistic Kepler rotation mode" /> Realistic rotation (Kepler)</label>
                 <label
-                    >Resolution <input type="range" id="inputResolution" min="10" max="100" step="1" value="75" />
-                    <span id="valResolution">75%</span>
+                    >Resolution <input type="range" id="inputResolution" min="10" max="100" step="1" value="75" aria-label="Render resolution" aria-describedby="valResolution" />
+                    <span id="valResolution" aria-hidden="true">75%</span>
                     <span class="warning">⚠ GPU heavy above 90%</span></label
                 >
             </div>

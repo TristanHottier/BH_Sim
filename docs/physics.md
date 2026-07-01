@@ -132,6 +132,14 @@ where:
 - $\gamma = (1 - \beta^2)^{-1/2}$ — Lorentz factor
 - $\varphi$ — angle between gas velocity and photon direction (in the static frame)
 
+### Emissivity profile
+
+The radial emissivity follows the Novikov-Thorne viscous flux profile:
+
+$$\epsilon(r) \propto \left(1 - \sqrt{\frac{r_{\text{in}}}{r}}\right)$$
+
+This ensures the emissivity vanishes at the ISCO ($r = r_{\text{in}}$), consistent with the temperature profile. A **visual gain factor of 3.0** is applied to bring the disk brightness into a visually pleasing range. This gain is not a physical parameter — it compensates for the simplified thin-disk model and single-pass rendering.
+
 ### Doppler beaming
 
 The monochromatic flux is boosted by $g^3$:

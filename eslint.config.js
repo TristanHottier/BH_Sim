@@ -23,7 +23,7 @@ module.exports = [
             'no-implied-eval': 'error',
             'no-eval': 'error',
             strict: ['error', 'global'],
-            'no-console': 'warn',
+            'no-console': 'off',
             semi: ['error', 'always'],
             quotes: ['warn', 'single', { avoidEscape: true }]
         }

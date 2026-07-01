@@ -16,8 +16,7 @@ const STATIC_ASSETS = [
     'shaders/fragment.glsl',
     'icon-192.png',
     'icon-512.png',
-    'manifest.json',
-    'screenshot.png'
+    'manifest.json'
 ];
 
 // ── Install ──────────────────────────────────────────────────────────────────

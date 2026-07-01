@@ -53,8 +53,7 @@ canvas:active {
     flex-direction: column;
     gap: 6px;
     z-index: 10;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+ 
 }
 #title {
     font-size: 18px;
@@ -135,8 +134,29 @@ canvas:active {
     flex: 1;
     max-width: 140px;
     accent-color: var(--color-primary);
-    height: 4px;
+    height: 24px;
     cursor: pointer;
+    padding: 10px 0;
+    box-sizing: border-box;
+    background: transparent;
+}
+#sliders input[type='range']::-webkit-slider-runnable-track {
+    height: 4px;
+    background: var(--color-primary);
+    border-radius: 2px;
+}
+#sliders input[type='range']::-moz-range-track {
+    height: 4px;
+    background: var(--color-primary);
+    border-radius: 2px;
+}
+#sliders input[type='range']::-webkit-slider-thumb {
+    margin-top: -6px;
+}
+#sliders input[type='range']::-moz-range-thumb {
+    border-radius: 50%;
+    width: 12px;
+    height: 12px;
 }
 #sliders input[type='range']:focus-visible,
 #sliders input[type='checkbox']:focus-visible {
