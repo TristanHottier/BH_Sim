@@ -23,7 +23,7 @@ out vec4 fragColor;
 #define ALPHA        8.0
 #define EH           1.0
 #define DISK_IN      3.0   // ISCO = 6M for Schwarzschild (M=0.5 → 3.0)
-#define DISK_OUT     25.0
+#define DISK_OUT     15.0
 #define DISK_SIGMA   0.02   // Thin disk, Interstellar-style limb darkening
 #define MAX_R        500.0
 #define MAX_STEPS    900
@@ -425,10 +425,10 @@ vec4 rayMarch(vec2 uv) {
                 // Normalized to [0, 1] over [DISK_IN, DISK_OUT]
                 float nr = pow(hr, -0.75) * pow(1.0 - sqrt(DISK_IN / hr), 0.25);
                 // Normalize so that t spans [0, 1] across the disk:
-                // nr peaks ~0.162 at r~4.1, drops to ~0.089 at r=25, goes to 0 at r_in
+                // nr peaks ~0.214 at r~4.08 (DISK_IN=3.0, DISK_OUT=15.0)
                 // Normalize by the peak value so t=1 at the temperature peak
-                // Then scale by 0.5 so outer disk gets t~0.55
-                float t = clamp(nr / 0.162 * 0.55, 0.0, 1.0);
+                // Then scale by 0.5 so outer disk gets t~0.29
+                float t = clamp(nr / 0.214 * 0.55, 0.0, 1.0);
                 float temp = t;
 
                 // Emissivity profile: slight inner brightening, outer drop-off

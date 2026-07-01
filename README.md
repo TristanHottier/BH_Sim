@@ -80,7 +80,7 @@ The $3Mu^2$ term is the relativistic correction — absent in Newtonian mechanic
 | $\text{ALPHA}$ | 8.0 | Gravitational curvature factor |
 | $b_\text{crit}$ | $\approx 6.93$ | Critical impact parameter (capture threshold) |
 | $\text{DISK}_\text{IN}$ | 1.125 | Inner radius of the accretion disk (adjusted ISCO for ALPHA = 8) |
-| $\text{DISK}_\text{OUT}$ | 25.0 | Outer radius of the accretion disk |
+| $\text{DISK}_\text{OUT}$ | 15.0 | Outer radius of the accretion disk |
 | $\text{DISK}_\text{SIGMA}$ | 0.10 | Vertical disk thickness (Gaussian) |
 | RK4 steps | 900 max | Maximum integration steps (adaptive) |
 | Adaptive step | 0.005 → 2.0 | Step size (finer near the black hole) |
@@ -99,7 +99,7 @@ This simulation balances physical accuracy with visual clarity. Some parameters 
 
 - **$\text{ALPHA} = 8.0$** instead of the physically correct $3$: enhances lensing visibility.
 - **$\text{DISK}_\text{IN} = 1.125$** is the adjusted ISCO for the modified metric with $\text{ALPHA} = 8$: $r_\text{ISCO} = \frac{18M}{\text{ALPHA}} = \frac{9}{8} = 1.125$. In standard Schwarzschild ($\text{ALPHA} = 3$), the ISCO would be $6M = 3.0$.
-- **$\text{DISK}_\text{OUT} = 25.0$**: not physically derived. Chosen to fill the field of view at typical camera distances without reaching the ray marching limit ($MAX_R = 500$).
+- **$\text{DISK}_\text{OUT} = 15.0$**: not physically derived. Chosen to keep the disk compact and visually focused, well within the ray marching limit ($MAX_R = 500$).
 - **$\text{DISK}_\text{SIGMA} = 0.10$**: thin disk approximation. Real accretion disks have H/r ~ 0.01–0.1, so this is within a realistic range for a geometrically thin disk.
 - **$M = 0.5$** ($r_s = 1.0$): arbitrary mass scale. The simulation is dimensionless — only ratios matter.
 
