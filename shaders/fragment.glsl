@@ -322,7 +322,7 @@ vec4 rayMarch(vec2 uv) {
     // Empirical correction: the post-Newtonian gravAccel bends rays more
     // than exact Schwarzschild geodesics, so the actual capture threshold
     // is higher. We scale b_crit to match the observed shadow size.
-    float b_crit_empirical = b_crit * 1.25;
+    float b_crit_empirical = b_crit * 1.115;
     bool captured = (b < b_crit_empirical * sqrt(max(0.01, 1.0 - EH / camDist)));
 
     // Flag: track whether ray has interacted with disk or been captured
