@@ -1,6 +1,6 @@
 {
-    "version": "1.5.1",
-    "commit": "4e2b161",
+    "version": "1.5.3",
+    "commit": "HEAD",
     "date": "2026-07-01",
-    "description": "v1.5.2 — P0/P1/P2 audit fixes: RK4, photon ring, SW, PWA, nginx, Beer-Lambert, backdrop-filter"
+    "description": "v1.5.3 — Version sync across all files, CI failure fixes"
 }

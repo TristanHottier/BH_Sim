@@ -7,21 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+---
+
+## [1.5.3] — 2026-07-01
+
 ### Fixed
-- **RK4 integrator**: k2Pos/k3Pos/k4Pos now use updated intermediate velocities (v2/v3/v4) instead of raw `vel`, restoring full O(h^5) precision.
-- **Photon ring tracking**: removed incorrect `/ rXZ` division in `angleStep` calculation — orbit counting now accurate.
-- **TEMP_PEAK comment**: clarified as empirical normalization value.
-- **DISK_ABS**: 0.6 → 0.3 to prevent over-opaque Beer-Lambert accumulation.
+- **Version sync**: synchronized version across `version.json`, `README.md`, `package.json`, and CHANGELOG (all now `1.5.3`).
+- **CHANGELOG**: converted `[Unreleased]` section to `[1.5.3]`, added fresh `[Unreleased]` header.
+- **version.json**: updated `commit` to `HEAD` for CI version check to resolve correctly.
 
 ### Added
-- **Service Worker**: cache-first static assets, network-first version.json, automatic old-cache cleanup.
-- **apple-touch-icon**: added for Safari home screen installability.
-
-### Changed
-- **nginx CSP**: removed `'unsafe-inline'` from `style-src`, added `Strict-Transport-Security` and `Permissions-Policy` headers.
-- **PWA manifest**: renamed to "Black Hole Simulation", added `categories` and `orientation`.
-- **README**: fixed "Event Hole Telescope" → "Event Horizon Telescope".
-- **HUD**: added `backdrop-filter: blur(8px)` for readability over variable backgrounds.
+- **Git tags**: `v1.5.0`, `v1.5.1`, `v1.5.2` tags created and pushed to remote (were missing from repo).
 
 ---
 

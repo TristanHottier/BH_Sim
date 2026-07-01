@@ -1,6 +1,6 @@
 {
     "name": "bh-sim",
-    "version": "1.5.1",
+    "version": "1.5.3",
     "description": "Interactive real-time simulation of gravitational lensing around a Schwarzschild black hole, rendered entirely on GPU via WebGL2.",
     "main": "main.js",
     "scripts": {
