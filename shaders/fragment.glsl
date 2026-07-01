@@ -410,7 +410,7 @@ vec4 rayMarch(vec2 uv) {
                 vec2 diskUV = hitDisk.xz;
                 float turb = diskTurbulence(diskUV, uTime);
                 float turbFactor = 0.6 + 0.4 * turb; // 0.6..1.0
-                vec3 discCol = blackbody(temp) * profile * turbFactor;
+                vec3 discCol = blackbody(temp) * profile * turbFactor * 2.5;
 
 // ═══ Redshift total g = √(1-2M/r) / [γ(1-β·cosφ)] combiné + beaming ═══
                 // Orbital velocity in Schwarzschild (measured by static observer):
@@ -439,7 +439,7 @@ vec4 rayMarch(vec2 uv) {
 
                 // Beaming: flux factor = g³ for monochromatic flux
                 float beamingFactor = g * g * g;
-                beamingFactor = clamp(beamingFactor, 0.001, 5.0);
+                beamingFactor = clamp(beamingFactor, 0.001, 8.0);
                 discCol *= beamingFactor;
 
                 // Color shift from redshift: mix towards red at high z
