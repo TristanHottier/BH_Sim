@@ -1,6 +1,6 @@
 {
-  "version": "1.0.8",
-  "commit": "8844219",
+  "version": "1.0.9",
+  "commit": "d94ca7c",
   "date": "2026-07-01",
-  "description": "DISK_SIGMA 0.02 — Interstellar-style thin disk"
+  "description": "Lens background stars — approximate deflection angle Δθ = 4M/b"
 }
