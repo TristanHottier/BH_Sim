@@ -312,10 +312,14 @@ vec4 rayMarch(vec2 uv) {
 
     // Impact parameter — correct Schwarzschild photon capture threshold
     // Photon sphere at r = 3M, critical impact parameter b_crit = 3√3 M
+    // b = |r × v| computed at camera position. In Schwarzschild, the
+    // GR-corrected impact parameter is b_GR = b / sqrt(1 - 2M/r_cam).
+    // A ray is captured if b_GR < b_crit, i.e. b < b_crit * sqrt(1 - 2M/r_cam).
     vec3 crossProd = cross(ro, rd);
     float b = length(crossProd);
     float b_crit = 3.0 * sqrt(3.0) * M;
-    bool captured = (b < b_crit);
+    float camDist = length(ro);
+    bool captured = (b < b_crit * sqrt(max(0.01, 1.0 - EH / camDist)));
 
     // Flag: track whether ray has interacted with disk or been captured
     bool rayInteracted = false;
