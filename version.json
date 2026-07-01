@@ -1,6 +1,6 @@
 {
-  "version": "1.1.12",
-  "commit": "280fdaf",
+  "version": "1.1.13",
+  "commit": "5ffde52",
   "date": "2026-07-01",
-  "description": "Shadow border empirical b_crit ×0.85"
+  "description": "Shadow size from ray final position instead of approximate captured"
 }
