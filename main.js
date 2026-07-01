@@ -231,7 +231,7 @@ window.addEventListener('mouseup', () => { isDragging = false; });
 canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     camDist *= 1.0 + e.deltaY * 0.001;
-  camDist = Math.max(25.0, Math.min(75.0, camDist));
+ camDist = Math.max(30.0, Math.min(75.0, camDist));
 }, { passive: false });
 
 // ── Touch controls ───────────────────────────────────────────────────────────
@@ -256,7 +256,7 @@ canvas.addEventListener('touchmove', (e) => {
         const pinchDist = Math.sqrt(dx * dx + dy * dy);
         const delta = pinchDist - lastPinchDist;
         camDist *= 1.0 - delta * 0.003;
- camDist = Math.max(25.0, Math.min(75.0, camDist));
+ camDist = Math.max(30.0, Math.min(75.0, camDist));
         lastPinchDist = pinchDist;
     } else if (isDragging && e.touches.length === 1) {
         const dx = e.touches[0].clientX - lastMouse.x;
