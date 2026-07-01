@@ -1,6 +1,6 @@
 {
-  "version": "1.0.5",
-  "commit": "ae080bb",
+  "version": "1.0.6",
+  "commit": "649c7c9",
   "date": "2026-07-01",
-  "description": "Fix Novikov-Thorne temperature — r^(-3/4)*(1-sqrt(r_in/r))^(1/4), was inverted"
+  "description": "Fix disk white wash — widen blackbody to 800-25000K, tighten temp normalization"
 }
