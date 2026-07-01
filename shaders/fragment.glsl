@@ -499,10 +499,22 @@ vec4 rayMarch(vec2 uv) {
    // Fond noir
     color = vec3(0.0);
 
-    // ── Fond céleste : projeté dans la direction initiale du rayon (rd) ──
-    // CORRECTION: utilise rd (direction initiale) au lieu de pos-ro
-    // pour que le fond soit correctement projeté sur la sphère céleste.
+    // ── Fond céleste : direction corrigée par lentillage gravitationnel ──
+    // Approximation : l'angle de déviation est Δθ ≈ 4M/b pour b > b_crit.
+    // On corrige rd en déplaçant la direction vers le trou noir.
     vec3 dir = rd;
+    if (!captured && b > 0.01) {
+        // Approximate deflection angle: Δθ = 4M / b
+        float deflection = 4.0 * M / b;
+        // Direction towards black hole from camera
+        vec3 toCenter = normalize(-ro);
+        // Deflection is perpendicular to rd, in the plane of rd and toCenter
+        vec3 deflectionDir = normalize(toCenter - dot(toCenter, rd) * rd);
+        // Apply deflection: rotate rd towards the black hole
+        dir = normalize(rd + deflectionDir * deflection * 0.5);
+        // Scale factor 0.5 is a heuristic to make the effect visually pleasing
+        // without over-deflecting (true GR deflection depends on full geodesic)
+    }
 
     // Voie lactée : bande colorée passant par le centre (trou noir)
     // Distance à un grand cercle passant par le centre (plan incliné) — bande très fine
