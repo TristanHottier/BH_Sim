@@ -16,7 +16,7 @@ if (!gl) {
 // ── Camera ────────────────────────────────────────────────────────────────────
 let camTheta = 100.0 * Math.PI / 180.0;
 let camPhi   = 80.0 * Math.PI / 180.0;
-let camDist  = 25.0;
+let camDist  = 30.0;
 let diskPsi  = 0.0;
 let realisticMode = false;
 let fullRes = false;
