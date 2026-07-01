@@ -16,7 +16,7 @@ if (!gl) {
 // ── Camera ────────────────────────────────────────────────────────────────────
 let camTheta = 100.0 * Math.PI / 180.0;
 let camPhi   = 80.0 * Math.PI / 180.0;
-let camDist  = 30.0;
+let camDist  = 35.0;
 let diskPsi  = 0.0;
 let realisticMode = false;
 let fullRes = false;
@@ -230,8 +230,8 @@ window.addEventListener('mousemove', (e) => {
 window.addEventListener('mouseup', () => { isDragging = false; });
 canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    camDist *= 1.0 + e.deltaY * 0.001;
- camDist = Math.max(30.0, Math.min(75.0, camDist));
+   camDist *= 1.0 + e.deltaY * 0.001;
+    camDist = Math.max(35.0, Math.min(75.0, camDist));
 }, { passive: false });
 
 // ── Touch controls ───────────────────────────────────────────────────────────
@@ -255,9 +255,9 @@ canvas.addEventListener('touchmove', (e) => {
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const pinchDist = Math.sqrt(dx * dx + dy * dy);
         const delta = pinchDist - lastPinchDist;
-        camDist *= 1.0 - delta * 0.003;
- camDist = Math.max(30.0, Math.min(75.0, camDist));
-        lastPinchDist = pinchDist;
+ camDist *= 1.0 - delta * 0.003;
+    camDist = Math.max(35.0, Math.min(75.0, camDist));
+    lastPinchDist = pinchDist;
     } else if (isDragging && e.touches.length === 1) {
         const dx = e.touches[0].clientX - lastMouse.x;
         const dy = e.touches[0].clientY - lastMouse.y;
