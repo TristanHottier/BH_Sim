@@ -1,6 +1,6 @@
 {
-  "version": "1.1.10",
-  "commit": "b571b5e",
+  "version": "1.1.11",
+  "commit": "3cea8fe",
   "date": "2026-07-01",
-  "description": "Shadow border empirical b_crit ×1.25"
+  "description": "Shadow border empirical b_crit ×1.115 (measured 5.2/5.8 ratio)"
 }
