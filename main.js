@@ -173,8 +173,8 @@ function render(now) {
     gl.uniform3fv(loc.uCamPos, camPos);
     gl.uniform1f(loc.uDiskPsi, diskPsi);
     gl.uniform1f(loc.uRealistic, realisticMode ? 1.0 : 0.0);
-    // uTimeOffset: freeze turbulence in realistic mode
-    gl.uniform1f(loc.uTimeOffset, realisticMode ? -simTime : 0.0);
+    // uTimeOffset: always 0 — turbulence uses simTime directly
+    gl.uniform1f(loc.uTimeOffset, 0.0);
     gl.uniform1f(loc.uSeed, realisticMode ? 1.0 : 0.0);
     gl.uniform1f(loc.uAspect, canvas.width / canvas.height);
     gl.uniform1f(loc.uFOV, Math.PI / 3);
@@ -306,7 +306,6 @@ checkRealistic.addEventListener('change', () => {
     realisticMode = checkRealistic.checked;
     if (loc) {
         gl.uniform1f(loc.uRealistic, realisticMode ? 1.0 : 0.0);
-        gl.uniform1f(loc.uTimeOffset, realisticMode ? -simTime : 0.0);
         gl.uniform1f(loc.uSeed, realisticMode ? 1.0 : 0.0);
     }
 });
