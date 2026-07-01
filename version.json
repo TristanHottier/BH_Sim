@@ -1,6 +1,6 @@
 {
-  "version": "1.0.4",
-  "commit": "1eca7c2",
+  "version": "1.0.5",
+  "commit": "ae080bb",
   "date": "2026-07-01",
-  "description": "Fix disk too dim — base emissivity gain 2.5, beaming clamp 8.0"
+  "description": "Fix Novikov-Thorne temperature — r^(-3/4)*(1-sqrt(r_in/r))^(1/4), was inverted"
 }
