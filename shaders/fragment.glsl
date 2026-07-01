@@ -27,7 +27,7 @@ const float MAX_R        = 500.0;
 const int   MAX_STEPS    = 900;          // Max integration steps (adaptive steps reach far field quickly)
 
 // ── Softening ────────────────────────────────────────────────────────────────
-const float SOFTEN_R2    = 0.001;        // Minimum r² in gravAccel to avoid division by zero
+// const float SOFTEN_R2  = 0.001;        // DEAD CODE: horizon capture (r < EH) breaks before r² < 0.001
 
 // ── Blackbody normalization ─────────────────────────────────────────────────
 const float TEMP_PEAK    = 0.214;        // Peak of Novikov-Thorne profile at r≈4.08 for DISK_IN=3.0
@@ -195,8 +195,7 @@ float diskTurbulence(vec2 diskPos, float time, bool realistic) {
 //     - Critical impact parameter: b_crit = 3√3 M ≈ 2.598
 vec3 gravAccel(vec3 x, vec3 v) {
     float r2 = dot(x, x);
-    // Softening to avoid singularity at r=0
-    if (r2 < SOFTEN_R2) r2 = SOFTEN_R2;
+    // r=0 is unreachable — horizon capture (r < EH) breaks before we get here
     float r = sqrt(r2);
     float r3 = r2 * r;
 
@@ -222,16 +221,14 @@ vec3 nebulaColor(vec3 dir, float baseHueShift) {
     float n3 = sin(dir.x * 7.0 + dir.y * 6.0 - dir.z * 5.0 + 2.0 + baseHueShift);
     float neb = (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * 0.5 + 0.5;
 
-    // Teinte bleu-violet-rose
+    // Teinte bleu-violet-rose (vectorized with step/mix, consistent with blackbody())
     float hue = n1 * 0.5 + 0.5;
-    vec3 nebColor;
-    if (hue < 0.33) {
-        nebColor = mix(vec3(0.1, 0.02, 0.35), vec3(0.25, 0.05, 0.45), hue * 3.0);
-    } else if (hue < 0.66) {
-        nebColor = mix(vec3(0.25, 0.05, 0.45), vec3(0.45, 0.1, 0.35), (hue - 0.33) * 3.0);
-    } else {
-        nebColor = mix(vec3(0.45, 0.1, 0.35), vec3(0.35, 0.15, 0.45), (hue - 0.66) * 3.0);
-    }
+    float s1 = step(hue, 0.33);
+    float s2 = step(hue, 0.66);
+    vec3 nebColor = vec3(0.0);
+    nebColor += mix(vec3(0.1, 0.02, 0.35), vec3(0.25, 0.05, 0.45), clamp(hue * 3.0, 0.0, 1.0)) * s1;
+    nebColor += mix(vec3(0.25, 0.05, 0.45), vec3(0.45, 0.1, 0.35), clamp((hue - 0.33) * 3.0, 0.0, 1.0)) * (1.0 - s1) * s2;
+    nebColor += mix(vec3(0.45, 0.1, 0.35), vec3(0.35, 0.15, 0.45), clamp((hue - 0.66) * 3.0, 0.0, 1.0)) * (1.0 - s2);
 
     return nebColor * neb;
 }

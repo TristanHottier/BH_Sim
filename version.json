@@ -1,6 +1,6 @@
 {
-  "version": "1.5.0",
-  "commit": "HEAD",
-  "date": "2026-07-01",
-  "description": "v1.5.0 — Version bump to 1.5.0"
+    "version": "1.5.1",
+    "commit": "4e2b161",
+    "date": "2026-07-01",
+    "description": "v1.5.1 — Audit fixes: MAX_STEPS 300, doc sync, ESLint strict, PWA icons, accessibility, CI cache, nginx cleanup"
 }

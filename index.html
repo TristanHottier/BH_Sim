@@ -1,40 +1,60 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="Interactive real-time simulation of gravitational lensing around a Schwarzschild black hole rendered in WebGL2.">
-    <meta name="theme-color" content="#000000">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='20' fill='%23000' stroke='%23ff8800' stroke-width='4'/><circle cx='50' cy='50' r='35' fill='none' stroke='%23ffaa44' stroke-width='1' opacity='0.5'/></svg>">
-    <title>Black Hole — Gravitational Lensing</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <canvas id="glCanvas" role="img" aria-label="Real-time simulation of gravitational lensing around a Schwarzschild black hole"></canvas>
-    <div id="hud">
-        <div id="title">Schwarzschild Black Hole <span class="subtitle">Gravitational Lensing • d²u/dφ² + u = 3Mu²</span></div>
-        <div id="stats">
-            <span id="fps">FPS: 0</span>
-            <span id="version" class="version-badge">v?.?.?</span>
-            <span id="camInfo">θ: 0.0° φ: 0.0° d: 22.0</span>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta
+            name="description"
+            content="Interactive real-time simulation of gravitational lensing around a Schwarzschild black hole rendered in WebGL2."
+        />
+        <meta name="theme-color" content="#000000" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="manifest" href="manifest.json" />
+        <link
+            rel="icon"
+            type="image/svg+xml"
+            href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='20' fill='%23000' stroke='%23ff8800' stroke-width='4'/><circle cx='50' cy='50' r='35' fill='none' stroke='%23ffaa44' stroke-width='1' opacity='0.5'/></svg>"
+        />
+        <title>Black Hole — Gravitational Lensing</title>
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <canvas
+            id="glCanvas"
+            role="img"
+            aria-label="Real-time simulation of gravitational lensing around a Schwarzschild black hole"
+            tabindex="0"
+        ></canvas>
+        <div id="hud">
+            <div id="title">
+                Schwarzschild Black Hole <span class="subtitle">Gravitational Lensing • d²u/dφ² + u = 3Mu²</span>
+            </div>
+            <div id="stats">
+                <span id="fps" aria-live="polite" aria-atomic="true">FPS: 0</span>
+                <span id="version" class="version-badge">v?.?.?</span>
+                <span id="camInfo">θ: 0.0° φ: 0.0° d: 22.0</span>
+            </div>
+            <div id="controls">
+                <p><strong>Click / Touch + drag</strong> — θ/φ rotation</p>
+                <p><strong>Scroll / Pinch</strong> — Zoom</p>
+                <p><strong>R</strong> — Reset</p>
+                <p><strong>Space</strong> — Pause</p>
+            </div>
+            <div id="sliders">
+                <label
+                    >Disk tilt <input type="range" id="sliderPsiDisk" min="-180" max="180" step="1" value="0" />
+                    <span id="valPsiDisk">0.0°</span></label
+                >
+                <label><input type="checkbox" id="checkRealistic" /> Realistic rotation (Kepler)</label>
+                <label
+                    ><input type="checkbox" id="checkFullRes" /> Full resolution
+                    <span class="warning">⚠ GPU heavy</span></label
+                >
+            </div>
         </div>
-        <div id="controls">
-            <p><strong>Click / Touch + drag</strong> — θ/φ rotation</p>
-            <p><strong>Scroll / Pinch</strong> — Zoom</p>
-            <p><strong>R</strong> — Reset</p>
-            <p><strong>Space</strong> — Pause</p>
-        </div>
-        <div id="sliders">
-            <label>Disk tilt <input type="range" id="sliderPsiDisk" min="-180" max="180" step="1" value="0"> <span id="valPsiDisk">0.0°</span></label>
-            <label><input type="checkbox" id="checkRealistic"> Realistic rotation (Kepler)</label>
-            <label><input type="checkbox" id="checkFullRes"> Full resolution <span class="warning">⚠ GPU heavy</span></label>
-        </div>
-    </div>
-    <div id="loading">Compiling shaders…</div>
-    <script src="main.js" defer></script>
-</body>
+        <div id="loading">Compiling shaders…</div>
+        <script src="main.js" defer></script>
+    </body>
 </html>

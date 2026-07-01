@@ -1,10 +1,10 @@
 services:
-  bh-sim:
-    build: .
-    ports:
-      - "8080:80"
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 128M
+    bh-sim:
+        build: .
+        ports:
+            - '8080:80'
+        restart: unless-stopped
+        deploy:
+            resources:
+                limits:
+                    memory: 128M

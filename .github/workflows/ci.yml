@@ -1,47 +1,58 @@
 name: CI
 
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+    push:
+        branches: [main, master]
+    pull_request:
+        branches: [main, master]
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    validate:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
 
-      - name: Install dependencies
-        run: npm ci || npm install
+            - name: Cache node modules
+              uses: actions/cache@v4
+              with:
+                  path: node_modules
+                  key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+                  restore-keys: |
+                      ${{ runner.os }}-node-
 
-      - name: ESLint
-        run: npx eslint .
+            - name: Install dependencies
+              run: npm ci || npm install
 
-      - name: Prettier check
-        run: npx prettier --check .
+            - name: ESLint
+              run: npx eslint .
 
-      - name: HTML Validator
-        uses: tylergaw/html-validator@v2
-        with:
-          error_level: mild
+            - name: Prettier check
+              run: npx prettier --check .
 
-      - name: Hadolint Dockerfile
-        uses: hadolint/hadolint-action@v3
-        with:
-          dockerfile: Dockerfile
+            - name: HTML Validator
+              uses: tylergaw/html-validator@v2
+              with:
+                  error_level: mild
 
-      - name: Validate version consistency
-        run: |
-          README_VER=$(grep 'Current version' README.md | sed 's/.*v\([0-9.]*\).*/\1/')
-          JSON_VER=$(node -p "require('./version.json').version")
-          if [ "$README_VER" != "$JSON_VER" ]; then
-            echo "::error::Version mismatch: README=$README_VER vs version.json=$JSON_VER"
-            exit 1
-          fi
-          echo "Version OK: v$README_VER"
+            - name: Hadolint Dockerfile
+              uses: hadolint/hadolint-action@v3
+              with:
+                  dockerfile: Dockerfile
+
+            - name: Docker build
+              run: docker build --no-cache .
+
+            - name: Validate version consistency
+              run: |
+                  README_VER=$(grep 'Current version' README.md | sed 's/.*v\([0-9.]*\).*/\1/')
+                  JSON_VER=$(node -p "require('./version.json').version")
+                  if [ "$README_VER" != "$JSON_VER" ]; then
+                    echo "::error::Version mismatch: README=$README_VER vs version.json=$JSON_VER"
+                    exit 1
+                  fi
+                  echo "Version OK: v$README_VER"

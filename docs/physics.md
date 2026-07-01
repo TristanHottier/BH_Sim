@@ -1,12 +1,14 @@
 # Physics Reference — BH_Sim
 
-> **Disclaimer**: This is a **visual simulation**, not a scientific tool. Several approximations are made for real-time performance. See the [README](../README.md#known-limitations) for the full list.
+> **Disclaimer**: This is a **visual simulation**, not a scientific tool. Several approximations are made for real-time
+> performance. See the [README](../README.md#known-limitations) for the full list.
 
 ---
 
 ## Schwarzschild Metric
 
-The black hole is modelled by the Schwarzschild metric, the exact solution to Einstein's field equations for a spherical, non-rotating, uncharged body:
+The black hole is modelled by the Schwarzschild metric, the exact solution to Einstein's field equations for a
+spherical, non-rotating, uncharged body:
 
 $$ds^2 = -\left(1 - \frac{r_s}{r}\right) c^2 dt^2 + \left(1 - \frac{r_s}{r}\right)^{-1} dr^2 + r^2 d\Omega^2$$
 
@@ -16,11 +18,11 @@ In this simulation: $c = 1$ (geometric units), $r_s = 1.0$, so $M = 0.5$.
 
 ### Key radii
 
-| Quantity | Formula | Value |
-|----------|---------|-------|
-| Event horizon | $r_s = 2M$ | 1.0 |
-| Photon sphere | $r_{ph} = 3M$ | 1.5 |
-| ISCO (Schwarzschild) | $r_{\text{ISCO}} = 6M$ | 3.0 |
+| Quantity                  | Formula                        | Value   |
+| ------------------------- | ------------------------------ | ------- |
+| Event horizon             | $r_s = 2M$                     | 1.0     |
+| Photon sphere             | $r_{ph} = 3M$                  | 1.5     |
+| ISCO (Schwarzschild)      | $r_{\text{ISCO}} = 6M$         | 3.0     |
 | Critical impact parameter | $b_{\text{crit}} = 3\sqrt{3}M$ | ≈ 2.598 |
 
 ---
@@ -42,13 +44,15 @@ The spatial trajectory is integrated using the 1PN acceleration form:
 $$\frac{d^2\vec{x}}{d\lambda^2} = -\frac{M}{r^3} \left[\vec{x} - 4(\vec{x} \cdot \vec{v})\vec{v} + 3\frac{(\vec{x} \cdot \vec{v})^2}{r^2} \vec{x}\right]$$
 
 Three terms:
+
 1. **Radial**: $-M/r^3 \cdot \vec{x}$ — inward pull
 2. **Velocity-dependent**: $+4M/r^3 \cdot (\vec{x} \cdot \vec{v}) \cdot \vec{v}$ — transverse deflection
 3. **Quadratic**: $-3M/r^5 \cdot (\vec{x} \cdot \vec{v})^2 \cdot \vec{x}$ — nonlinear GR correction
 
 This gives the correct weak-field deflection $\Delta\theta = 4M/b$ (Einstein angle).
 
-> **Limitation**: The 1PN approximation is valid in weak field ($r \gg M$). Near the photon sphere ($r \approx 1.5$), the approximation deviates from the exact geodesic solution.
+> **Limitation**: The 1PN approximation is valid in weak field ($r \gg M$). Near the photon sphere ($r \approx 1.5$),
+> the approximation deviates from the exact geodesic solution.
 
 ### RK4 Integration
 
@@ -58,7 +62,7 @@ $$\frac{d\vec{x}}{d\lambda} = \vec{v}, \quad \frac{d\vec{v}}{d\lambda} = \vec{a}
 
 Standard 4th-order Runge-Kutta:
 
-$$\begin{aligned}
+$$ \begin{aligned}
 \vec{k}_1^{\text{pos}} &= \vec{v}, & \vec{k}_1^{\text{vel}} &= \vec{a}(\vec{x}, \vec{v}) \\
 \vec{k}_2^{\text{pos}} &= \vec{v}, & \vec{k}_2^{\text{vel}} &= \vec{a}(\vec{x} + \tfrac{h}{2}\vec{k}_1^{\text{pos}}, \vec{v} + \tfrac{h}{2}\vec{k}_1^{\text{vel}}) \\
 \vec{k}_3^{\text{pos}} &= \vec{v}, & \vec{k}_3^{\text{vel}} &= \vec{a}(\vec{x} + \tfrac{h}{2}\vec{k}_2^{\text{pos}}, \vec{v} + \tfrac{h}{2}\vec{k}_2^{\text{vel}}) \\
@@ -157,3 +161,4 @@ This shifts the background sky direction toward the black hole center.
 - Luminet, J.P. (1979). *Image of a spherical black hole with spherical accretion disk*. A&A, 75, 228.
 - James et al. (2015). *Dressing a black hole for the big screen*. JOSS, 1(1), 5.
 - Munnich, M. (2004). *Blackbody color approximation*. ShaderX 2.
+$$
