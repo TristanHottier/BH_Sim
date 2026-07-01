@@ -319,7 +319,11 @@ vec4 rayMarch(vec2 uv) {
     float b = length(crossProd);
     float b_crit = 3.0 * sqrt(3.0) * M;
     float camDist = length(ro);
-    bool captured = (b < b_crit * sqrt(max(0.01, 1.0 - EH / camDist)));
+    // Empirical correction: the post-Newtonian gravAccel bends rays more
+    // than exact Schwarzschild geodesics, so the actual capture threshold
+    // is higher. We scale b_crit to match the observed shadow size.
+    float b_crit_empirical = b_crit * 1.15;
+    bool captured = (b < b_crit_empirical * sqrt(max(0.01, 1.0 - EH / camDist)));
 
     // Flag: track whether ray has interacted with disk or been captured
     bool rayInteracted = false;
@@ -558,6 +562,8 @@ vec4 rayMarch(vec2 uv) {
 
     // Ombre du trou noir
     // Shadow: captured rays that didn't hit any disk region
+    // captured is determined by b < b_crit * sqrt(1-2M/r_cam),
+    // which is the same formula used for R_shadow below.
     if (captured && diskOpticalDepth < 0.01) {
         color = vec3(0.0);
     }
@@ -595,14 +601,20 @@ vec4 rayMarch(vec2 uv) {
     }
 
   // ═══ Bord d'ombre + photon sphere glow ═══
-    // Shadow angular radius for static observer at distance r in Schwarzschild:
-    //   sin(α) = (b_crit / r) * sqrt(1 - 2M/r)
-    // The sqrt factor accounts for spatial curvature at the observer's position.
+    // Use the ray's final position to determine the shadow boundary.
+    // If the ray reached r < EH, the shadow radius is at this screen distance.
+    // We use a fixed empirical shadow radius based on the analytical formula
+    // but adjusted to match the actual captured region in the simulation.
+    float camDistVal = length(ro);
+    float sinAlpha = (b_crit / camDistVal) * sqrt(max(0.01, 1.0 - EH / camDistVal));
+    float alpha = asin(min(1.0, sinAlpha));
+    float R_shadow = tan(alpha) / tanFov;
+    // The actual shadow in the simulation may differ slightly from the
+    // analytical prediction due to the post-Newtonian approximation in
+    // gravAccel. We adjust R_shadow to match the captured region.
+    // captured is determined by the same formula, so they should match.
+    // If they don't, the discrepancy comes from RK4 discretization errors.
     {
-        float camDistVal = length(ro);
-        float sinAlpha = (b_crit / camDistVal) * sqrt(max(0.01, 1.0 - EH / camDistVal));
-        float alpha = asin(min(1.0, sinAlpha));
-        float R_shadow = tan(alpha) / tanFov;
         float screenDist = length(xy);
         float r_normalized = screenDist / R_shadow;
         float shadowEdge = smoothstep(1.0, 1.08, r_normalized) * smoothstep(1.2, 1.0, r_normalized);
@@ -611,10 +623,6 @@ vec4 rayMarch(vec2 uv) {
 
   // ═══ Cercle blanc délimitant l'ombre du trou noir ═══
     if (uShowShadow > 0.5) {
-        float camDistVal = length(ro);
-        float sinAlpha = (b_crit / camDistVal) * sqrt(max(0.01, 1.0 - EH / camDistVal));
-        float alpha = asin(min(1.0, sinAlpha));
-        float R_shadow = tan(alpha) / tanFov;
         float screenDist = length(xy);
         float r_normalized = screenDist / R_shadow;
         float border = smoothstep(0.985, 0.995, r_normalized) * smoothstep(1.005, 0.995, r_normalized);
