@@ -319,11 +319,7 @@ vec4 rayMarch(vec2 uv) {
     float b = length(crossProd);
     float b_crit = 3.0 * sqrt(3.0) * M;
     float camDist = length(ro);
-    // Empirical correction: the post-Newtonian gravAccel bends rays more
-    // than exact Schwarzschild geodesics, so the actual capture threshold
-    // is higher. We scale b_crit to match the observed shadow size.
-    float b_crit_empirical = b_crit * 0.85;
-    bool captured = (b < b_crit_empirical * sqrt(max(0.01, 1.0 - EH / camDist)));
+    bool captured = (b < b_crit * sqrt(max(0.01, 1.0 - EH / camDist)));
 
     // Flag: track whether ray has interacted with disk or been captured
     bool rayInteracted = false;
@@ -561,10 +557,10 @@ vec4 rayMarch(vec2 uv) {
     color = mix(color, diskAcc, 1.0 - diskTransmittance);
 
     // Ombre du trou noir
-    // Shadow: rays that reached the event horizon (r < EH) after ray marching.
-    // This ensures the shadow size matches the physical R_shadow computed
-    // from the Schwarzschild metric, not the approximate captured check.
-    if (length(pos) < EH && diskOpticalDepth < 0.01) {
+  // Shadow: rays that were captured by the black hole (reached r < EH).
+    // captured is set during ray marching when r < EH.
+    // This matches the same R_shadow formula used for the shadow border.
+    if (captured && diskOpticalDepth < 0.01) {
         color = vec3(0.0);
     }
 
