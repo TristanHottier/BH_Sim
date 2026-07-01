@@ -1,6 +1,6 @@
 {
-  "version": "1.0.6",
-  "commit": "649c7c9",
+  "version": "1.0.7",
+  "commit": "4573973",
   "date": "2026-07-01",
-  "description": "Fix disk white wash — widen blackbody to 800-25000K, tighten temp normalization"
+  "description": "Fix disk too blue — narrow temp to 1500-12000K, normalization 0.55*peak"
 }
