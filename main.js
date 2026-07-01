@@ -5,26 +5,41 @@
 //  Full-resolution ray per pixel.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ── DOM references ──────────────────────────────────────────────────────────
 const canvas = document.getElementById('glCanvas');
 const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
+const hud = document.getElementById('hud');
+const fpsEl = document.getElementById('fps');
+const camInfoEl = document.getElementById('camInfo');
+const VERSION_TAG = document.getElementById('version');
+const sliderPsiDisk = document.getElementById('sliderPsiDisk');
+const valPsiDisk = document.getElementById('valPsiDisk');
+const checkRealistic = document.getElementById('checkRealistic');
+const checkFullRes = document.getElementById('checkFullRes');
+const loading = document.getElementById('loading');
 
+// ── WebGL error handling ────────────────────────────────────────────────────
 if (!gl) {
     const err = document.createElement('div');
-    err.style.cssText = 'color:#f88;text-align:center;margin-top:40vh;font-family:sans-serif';
-    err.textContent = 'WebGL 2 required';
+    err.style.cssText = 'color:#f88;text-align:center;margin-top:40vh;font-family:sans-serif;padding:20px;';
+    err.innerHTML = '<h2>WebGL 2 required</h2><p>Your browser does not support WebGL 2.<br>Please try a modern browser.</p>';
     document.body.appendChild(err);
+    document.body.style.overflow = 'auto';
     throw new Error('WebGL2 required');
 }
 
-// ── Camera constants (single source of truth) ─────────────────────────────────
+// ── Camera constants (single source of truth) ───────────────────────────────
 const CAM_DEFAULT_THETA = 100.0 * Math.PI / 180.0;
 const CAM_DEFAULT_PHI   = 80.0 * Math.PI / 180.0;
-const CAM_DEFAULT_DIST  = 45.0;
-const CAM_DIST_MIN      = 35.0;
+const CAM_DEFAULT_DIST  = 40.0;
+const CAM_DIST_MIN      = 33.0;
 const CAM_DIST_MAX      = 100.0;
 const CAM_SENSITIVITY   = 0.005;
+const HUD_FADE_DELAY    = 4000;   // ms before HUD fades
+const FPS_UPDATE_INTERVAL = 250;  // ms between FPS DOM updates
+const RENDER_DT_CAP     = 0.1;    // cap delta-time at 100ms
 
-// ── Camera state ─────────────────────────────────────────────────────────────
+// ── Camera state ────────────────────────────────────────────────────────────
 let camTheta = CAM_DEFAULT_THETA;
 let camPhi   = CAM_DEFAULT_PHI;
 let camDist  = CAM_DEFAULT_DIST;
@@ -35,32 +50,28 @@ let fullRes = false;
 let paused   = false;
 let simTime  = 0.0;
 let isDragging = false;
-let lastMouse = { x: 0, y: 0 };
+let lastMouseX = 0;
+let lastMouseY = 0;
 
 let frameCount = 0;
 let lastFpsTime = performance.now();
 let currentFps = 0;
 
-// ── HUD fade — réactive uniquement sur événements utilisateur (v1.4.0) ──────
+// ── HUD fade — reactive only on user events ─────────────────────────────────
 let hudTimeout;
-const hud = document.getElementById('hud');
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
 function resetHudFade() {
     hud.classList.add('active');
     hud.classList.remove('fade');
     clearTimeout(hudTimeout);
-    hudTimeout = setTimeout(() => hud.classList.add('fade'), 4000);
+    if (!prefersReducedMotion.matches) {
+        hudTimeout = setTimeout(() => hud.classList.add('fade'), HUD_FADE_DELAY);
+    }
 }
 resetHudFade();
 
-// ── DOM references (hoisted before any handler) ──────────────────────────────
-const sliderPsiDisk    = document.getElementById('sliderPsiDisk');
-const valPsiDisk       = document.getElementById('valPsiDisk');
-const checkRealistic   = document.getElementById('checkRealistic');
-const checkFullRes     = document.getElementById('checkFullRes');
-const VERSION_TAG      = document.getElementById('version');
-const camInfoEl        = document.getElementById('camInfo');  // v1.4.0: hoistée
-
-// ── Version system — avec timeout AbortController (v1.4.0) ───────────────────
+// ── Version system — with fallback timeout ──────────────────────────────────
 let appVersion = 'v?.?.?';
 let appCommit  = '?';
 
@@ -74,8 +85,40 @@ function setVersion(v, commit) {
     console.log(`BH_Sim ${v} (${commit})`);
 }
 
-// v1.4.0: fetch avec timeout
-fetch('version.json', { signal: AbortSignal.timeout(5000) })
+// Fallback timeout for AbortSignal.timeout() compatibility
+function fetchWithTimeout(url, timeoutMs) {
+    return new Promise((resolve, reject) => {
+        // Try modern AbortSignal.timeout first
+        try {
+            const signal = AbortSignal.timeout(timeoutMs);
+            fetch(url, { signal }).then(resolve, (err) => {
+                // AbortSignal.timeout not supported or timed out — try manual fallback
+                if (err.name === 'TimeoutError') {
+                    manualTimeoutFetch(url, timeoutMs).then(resolve, reject);
+                } else {
+                    reject(err);
+                }
+            });
+        } catch {
+            // AbortSignal.timeout not supported — use manual fallback
+            manualTimeoutFetch(url, timeoutMs).then(resolve, reject);
+        }
+    });
+}
+
+function manualTimeoutFetch(url, timeoutMs) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error('Fetch timeout'));
+        }, timeoutMs);
+        fetch(url).then(
+            (r) => { clearTimeout(timer); resolve(r); },
+            (err) => { clearTimeout(timer); reject(err); }
+        );
+    });
+}
+
+fetchWithTimeout('version.json', 5000)
     .then(r => r.ok ? r.json() : Promise.reject('not found'))
     .then(meta => {
         const ver = 'v' + meta.version;
@@ -85,10 +128,12 @@ fetch('version.json', { signal: AbortSignal.timeout(5000) })
     .catch(() => {
         if (VERSION_TAG && VERSION_TAG.textContent && VERSION_TAG.textContent.startsWith('v')) {
             setVersion(VERSION_TAG.textContent, '?');
+        } else {
+            console.warn('BH_Sim: Could not load version.json');
         }
     });
 
-// ── Shader compilation ────────────────────────────────────────────────────────
+// ── Shader compilation ──────────────────────────────────────────────────────
 function compileShader(src, type) {
     const s = gl.createShader(type);
     gl.shaderSource(s, src);
@@ -115,7 +160,7 @@ function createProgram(vsSrc, fsSrc) {
     return p;
 }
 
-// ── Load shaders ──────────────────────────────────────────────────────────────
+// ── Load shaders ────────────────────────────────────────────────────────────
 async function loadShaderFile(path) {
     const resp = await fetch(path);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${path}`);
@@ -131,18 +176,18 @@ Promise.all([
     vertexSrc = vs;
     fragmentSrc = fs;
     init();
-    // Hide loading overlay
-    const loading = document.getElementById('loading');
     if (loading) loading.classList.add('hidden');
 }).catch(err => {
     console.error('Failed to load shaders:', err);
+    if (loading) loading.classList.add('hidden');
     const errDiv = document.createElement('div');
-    errDiv.style.cssText = 'color:#f88;text-align:center;margin-top:40vh;font-family:sans-serif';
-    errDiv.innerHTML = `Shader load error.<br>Run via local server.<br><small>${err.message}</small>`;
+    errDiv.style.cssText = 'color:#f88;text-align:center;margin-top:40vh;font-family:sans-serif;padding:20px;';
+    errDiv.textContent = `Shader load error.\nRun via local server.\n\n${err.message}`;
     document.body.appendChild(errDiv);
+    document.body.style.overflow = 'auto';
 });
 
-// ── Fullscreen quad ──────────────────────────────────────────────────────────
+// ── Fullscreen quad ────────────────────────────────────────────────────────
 const quadVAO = gl.createVertexArray();
 const quadVBO = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
@@ -152,17 +197,26 @@ gl.enableVertexAttribArray(0);
 gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 gl.bindVertexArray(null);
 
-// ── Resize — passive: true (v1.4.0) ──────────────────────────────────────────
+// ── Resize — passive: true ──────────────────────────────────────────────────
+let resizeScheduled = false;
 function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, fullRes ? 2 : 1);
     const scale = fullRes ? 1.0 : 0.5;
     canvas.width  = Math.floor(window.innerWidth * dpr * scale);
     canvas.height = Math.floor(window.innerHeight * dpr * scale);
     gl.viewport(0, 0, canvas.width, canvas.height);
+    resizeScheduled = false;
 }
-window.addEventListener('resize', resize, { passive: true });
 
-// ── Formatage caméra unique (v1.4.0) ─────────────────────────────────────────
+function scheduleResize() {
+    if (!resizeScheduled) {
+        resizeScheduled = true;
+        requestAnimationFrame(resize);
+    }
+}
+window.addEventListener('resize', scheduleResize, { passive: true });
+
+// ── Camera info formatting ──────────────────────────────────────────────────
 function formatCamInfo() {
     const thetaDeg = (camTheta * 180 / Math.PI).toFixed(1);
     const phiDeg   = (camPhi * 180 / Math.PI).toFixed(1);
@@ -171,15 +225,13 @@ function formatCamInfo() {
     return `θ: ${thetaDeg}°  φ: ${phiDeg}°  ψd: ${psiDeg}°  d: ${camDist.toFixed(1)}${pause}`;
 }
 
-// ── Render loop ──────────────────────────────────────────────────────────────
+// ── Render loop ─────────────────────────────────────────────────────────────
 let prog, loc;
 let lastFrameTime = performance.now();
 
 function render(now) {
-    // v1.4.0: resetHudFade() retiré de render() — appelé uniquement sur événements
-
     // Delta-time animation (frame-rate independent)
-    const dt = Math.min((now - lastFrameTime) / 1000, 0.1); // cap at 100ms
+    const dt = Math.min((now - lastFrameTime) / 1000, RENDER_DT_CAP);
     lastFrameTime = now;
 
     if (!paused) {
@@ -212,16 +264,14 @@ function render(now) {
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-    // HUD — format unique via formatCamInfo() (v1.4.0)
+    // HUD — FPS and camera info
     frameCount++;
-    if (now - lastFpsTime >= 250) {
+    if (now - lastFpsTime >= FPS_UPDATE_INTERVAL) {
         currentFps = Math.round(frameCount / ((now - lastFpsTime) / 1000));
         frameCount = 0;
         lastFpsTime = now;
-        document.getElementById('fps').textContent = `FPS: ${currentFps}`;
-        if (camInfoEl) {
-            camInfoEl.textContent = formatCamInfo();
-        }
+        if (fpsEl) fpsEl.textContent = `FPS: ${currentFps}`;
+        if (camInfoEl) camInfoEl.textContent = formatCamInfo();
     }
 
     requestAnimationFrame(render);
@@ -231,16 +281,31 @@ function init() {
     prog = createProgram(vertexSrc, fragmentSrc);
     if (!prog) {
         const errDiv = document.createElement('div');
-        errDiv.style.cssText = 'color:#f88;text-align:center;margin-top:40vh;font-family:sans-serif';
-        errDiv.textContent = 'Shader compilation failed';
+        errDiv.style.cssText = 'color:#f88;text-align:center;margin-top:40vh;font-family:sans-serif;padding:20px;';
+        errDiv.textContent = 'Shader compilation failed. Check browser console.';
         document.body.appendChild(errDiv);
+        document.body.style.overflow = 'auto';
         return;
     }
+
+    // Resolve uniform locations — fail gracefully if any are missing
     const l = {};
     const n = gl.getProgramParameter(prog, gl.ACTIVE_UNIFORMS);
     for (let i = 0; i < n; i++) {
         const info = gl.getActiveUniform(prog, i);
-        l[info.name] = gl.getUniformLocation(prog, info.name);
+        const loc = gl.getUniformLocation(prog, info.name);
+        if (!loc) {
+            console.warn(`Uniform "${info.name}" not found in program`);
+        }
+        l[info.name] = loc;
+    }
+    // Verify all expected uniforms are present
+    const expected = ['uCamPos', 'uAspect', 'uFOV', 'uTime', 'uDiskPsi',
+                      'uDiskCos', 'uDiskSin', 'uRealistic', 'uSeed'];
+    for (const name of expected) {
+        if (!l[name]) {
+            console.error(`Missing uniform: ${name}`);
+        }
     }
     loc = l;
 
@@ -248,15 +313,15 @@ function init() {
     requestAnimationFrame(render);
 }
 
-// ── Mouse controls ───────────────────────────────────────────────────────────
+// ── Mouse controls ──────────────────────────────────────────────────────────
 canvas.addEventListener('mousedown', (e) => {
-    if (e.button === 0) { isDragging = true; lastMouse.x = e.clientX; lastMouse.y = e.clientY; }
+    if (e.button === 0) { isDragging = true; lastMouseX = e.clientX; lastMouseY = e.clientY; }
 });
 window.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
-    camTheta -= (e.clientX - lastMouse.x) * CAM_SENSITIVITY;
-    camPhi = Math.max(0.001, Math.min(Math.PI - 0.001, camPhi + (e.clientY - lastMouse.y) * CAM_SENSITIVITY));
-    lastMouse.x = e.clientX; lastMouse.y = e.clientY;
+    camTheta -= (e.clientX - lastMouseX) * CAM_SENSITIVITY;
+    camPhi = Math.max(10.0 * Math.PI / 180.0, Math.min(170.0 * Math.PI / 180.0, camPhi + (e.clientY - lastMouseY) * CAM_SENSITIVITY));
+    lastMouseX = e.clientX; lastMouseY = e.clientY;
 });
 window.addEventListener('mouseup', () => { isDragging = false; });
 canvas.addEventListener('wheel', (e) => {
@@ -265,20 +330,20 @@ canvas.addEventListener('wheel', (e) => {
     camDist = Math.max(CAM_DIST_MIN, Math.min(CAM_DIST_MAX, camDist));
 }, { passive: false });
 
-// ── Touch controls ───────────────────────────────────────────────────────────
+// ── Touch controls ──────────────────────────────────────────────────────────
 let lastPinchDist = 0;
 canvas.addEventListener('touchstart', (e) => {
     if (e.touches.length === 1) {
         isDragging = true;
-        lastMouse.x = e.touches[0].clientX;
-        lastMouse.y = e.touches[0].clientY;
+        lastMouseX = e.touches[0].clientX;
+        lastMouseY = e.touches[0].clientY;
     } else if (e.touches.length === 2) {
         isDragging = false;
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         lastPinchDist = Math.sqrt(dx * dx + dy * dy);
     }
-    resetHudFade();  // v1.4.0: réactive HUD sur touch
+    resetHudFade();
 }, { passive: false });
 canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
@@ -291,22 +356,22 @@ canvas.addEventListener('touchmove', (e) => {
         camDist = Math.max(CAM_DIST_MIN, Math.min(CAM_DIST_MAX, camDist));
         lastPinchDist = pinchDist;
     } else if (isDragging && e.touches.length === 1) {
-        const dx = e.touches[0].clientX - lastMouse.x;
-        const dy = e.touches[0].clientY - lastMouse.y;
+        const dx = e.touches[0].clientX - lastMouseX;
+        const dy = e.touches[0].clientY - lastMouseY;
         camTheta -= dx * CAM_SENSITIVITY;
-        camPhi = Math.max(0.001, Math.min(Math.PI - 0.001, camPhi + dy * CAM_SENSITIVITY));
-        lastMouse.x = e.touches[0].clientX; lastMouse.y = e.touches[0].clientY;
+        camPhi = Math.max(10.0 * Math.PI / 180.0, Math.min(170.0 * Math.PI / 180.0, camPhi + dy * CAM_SENSITIVITY));
+        lastMouseX = e.touches[0].clientX; lastMouseY = e.touches[0].clientY;
     }
-    resetHudFade();  // v1.4.0: réactive HUD sur touch move
+    resetHudFade();
 }, { passive: false });
 canvas.addEventListener('touchend', () => { isDragging = false; });
 
-// ── Keyboard ─────────────────────────────────────────────────────────────────
+// ── Keyboard ────────────────────────────────────────────────────────────────
 window.addEventListener('keydown', (e) => {
-    resetHudFade();  // v1.4.0: réactive HUD sur keydown
+    resetHudFade();
 
     if (e.key === 'r' || e.key === 'R') {
-        // v1.4.0: reset complet (inclut realisticMode et fullRes)
+        // Full reset
         camTheta = CAM_DEFAULT_THETA;
         camPhi   = CAM_DEFAULT_PHI;
         camDist  = CAM_DEFAULT_DIST;
@@ -317,22 +382,17 @@ window.addEventListener('keydown', (e) => {
         valPsiDisk.textContent = '0.0°';
         checkRealistic.checked = false;
         checkFullRes.checked = false;
-        if (camInfoEl) {
-            camInfoEl.textContent = formatCamInfo();
-        }
+        if (camInfoEl) camInfoEl.textContent = formatCamInfo();
     }
     if (e.key === ' ') { e.preventDefault(); paused = !paused; }
 });
 
-// ── Slider ψ disque ──────────────────────────────────────────────────────────
+// ── Slider ψ disque ─────────────────────────────────────────────────────────
 sliderPsiDisk.addEventListener('input', () => {
-    // v1.4.0: parseFloat appelé une seule fois
     const deg = parseFloat(sliderPsiDisk.value);
     diskPsi = deg * Math.PI / 180.0;
     valPsiDisk.textContent = deg.toFixed(1) + '°';
-    if (camInfoEl) {
-        camInfoEl.textContent = formatCamInfo();
-    }
+    if (camInfoEl) camInfoEl.textContent = formatCamInfo();
 });
 
 checkRealistic.addEventListener('change', () => {
@@ -345,5 +405,5 @@ checkRealistic.addEventListener('change', () => {
 
 checkFullRes.addEventListener('change', () => {
     fullRes = checkFullRes.checked;
-    resize();
+    scheduleResize();
 });

@@ -1,0 +1,26 @@
+{
+  "name": "bh-sim",
+  "version": "1.5.0",
+  "description": "Interactive real-time simulation of gravitational lensing around a Schwarzschild black hole, rendered entirely on GPU via WebGL2.",
+  "main": "main.js",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write ."
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0"
+  },
+  "keywords": ["webgl2", "black-hole", "gravitational-lensing", "ray-marching", "glsl"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TristanHottier/BH_Sim.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TristanHottier/BH_Sim/issues"
+  },
+  "homepage": "https://tristanhottier.github.io/BH_Sim/"
+}

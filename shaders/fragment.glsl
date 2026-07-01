@@ -22,9 +22,52 @@ const float M            = 0.5;
 const float EH           = 1.0;          // Event horizon = 2M = 1.0
 const float DISK_IN      = 3.0;          // ISCO = 6M for Schwarzschild
 const float DISK_OUT     = 15.0;
-const float DISK_SIGMA   = 0.02;         // Thin disk, Interstellar-style limb darkening
+const float DISK_SIGMA   = 0.02;         // Thin disk, Interstellar-style vertical thickness
 const float MAX_R        = 500.0;
-const int MAX_STEPS      = 900;
+const int   MAX_STEPS    = 900;          // Max integration steps (adaptive steps reach far field quickly)
+
+// ── Softening ────────────────────────────────────────────────────────────────
+const float SOFTEN_R2    = 0.001;        // Minimum r² in gravAccel to avoid division by zero
+
+// ── Blackbody normalization ─────────────────────────────────────────────────
+const float TEMP_PEAK    = 0.214;        // Peak of Novikov-Thorne profile at r≈4.08 for DISK_IN=3.0
+const float TEMP_SCALE   = 0.55;         // Normalize peak to 1.0, then scale down for visual range
+
+// ── Disk optical properties ─────────────────────────────────────────────────
+const float BETA_MAX     = 0.95;         // Clamp orbital velocity to avoid division by zero in gamma
+const float BEAM_MIN     = 0.001;        // Minimum beaming factor to avoid zero-flux artifacts
+const float BEAM_MAX     = 8.0;          // Maximum beaming factor to avoid overflow
+const float COLOR_MIX    = 0.3;          // Mix factor for gravitational redshift color shift
+const float DISK_ABS     = 0.6;          // Beer-Lambert absorption per disk intersection
+
+// ── Photon ring ─────────────────────────────────────────────────────────────
+const float RING_WIDTH   = 0.35;         // Width of photon ring boost region (in orbit units)
+const float RING_BOOST   = 4.0;          // Max brightness multiplier at 1 orbit
+const float ORBIT_FADE_START = 0.5;      // Start fading higher-order images
+const float ORBIT_FADE_END   = 2.0;      // Fully faded beyond this orbit count
+const float DIRECT_FADE_MAX  = 0.1;      // Max fade for direct (0-orbit) rays
+
+// ── Star field thresholds ───────────────────────────────────────────────────
+const float STAR_DENSITY   = 0.9960;     // Primary star cell density threshold
+const float STAR_BRIGHTNESS= 0.99995;    // Primary star brightness threshold
+const float STAR_Faint_1   = 0.9940;     // Faint star layer 1 threshold
+const float STAR_Faint_2   = 0.9930;     // Faint star layer 2 threshold
+
+// ── Hash seed constants ─────────────────────────────────────────────────────
+// Prime-based seeds for spatial hashing — chosen to minimize visible patterns
+const float HASH_SEED_A  = 127.1;
+const float HASH_SEED_B  = 311.7;
+const float HASH_SCALE   = 43758.5453;   // Knuth's multiplicative hash constant
+const float HASH_SEED_C  = 123.34;
+const float HASH_SEED_D  = 456.21;
+const float HASH_SEED_E  = 789.98;
+const float HASH_SEED_F  = 269.5;
+const float HASH_SEED_G  = 183.3;
+const float HASH_SEED_H  = 419.2;
+
+// ── FBM rotation constant ───────────────────────────────────────────────────
+// mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5)) — rotation by 0.5 rad per octave
+const mat2 FBM_ROT = mat2(0.8775825619, 0.4794255386, -0.4794255386, 0.8775825619);
 
 uniform vec3  uCamPos;
 uniform float uAspect;
@@ -54,7 +97,9 @@ vec3 diskToWorld(vec3 p) {
 // en décalant l'angle azimutal en fonction du rayon et du temps.
 
 float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1 + uSeed * 991.0, 311.7 + uSeed * 743.0))) * 43758.5453);
+    // Pre-multiplied seed offsets (computed once in JS as uniforms would be, but here fused)
+    vec2 seedOffset = vec2(uSeed * 991.0, uSeed * 743.0);
+    return fract(sin(dot(p, vec2(HASH_SEED_A + seedOffset.x, HASH_SEED_B + seedOffset.y))) * HASH_SCALE);
 }
 
 float noise(vec2 p) {
@@ -71,11 +116,9 @@ float noise(vec2 p) {
 // Precomputed rotation matrix for FBM — computed once per FBM call, not per octave
 float fbm(vec2 p) {
     float v = 0.0, a = 0.5;
-    // Rotation by 0.5 rad (precomputed)
-    mat2 rot = mat2(0.8775825619, 0.4794255386, -0.4794255386, 0.8775825619);
     for (int i = 0; i < 5; i++) {
         v += a * noise(p);
-        p = rot * p * 2.0;
+        p = FBM_ROT * p * 2.0;
         a *= 0.5;
     }
     return v;
@@ -130,7 +173,7 @@ float diskTurbulenceCine(vec2 diskPos, float time) {
     return mix(n, spiralStr, 0.8) * 0.7 + fine * 0.3;
 }
 
-// Facteur de turbulence : version choisie — factorisée (v1.4.0)
+// Turbulence selector — switches between Kepler and rigid-body rotation
 float diskTurbulence(vec2 diskPos, float time, bool realistic) {
     if (realistic) {
         return diskTurbulenceKepler(diskPos, time);
@@ -152,15 +195,18 @@ float diskTurbulence(vec2 diskPos, float time, bool realistic) {
 //     - Critical impact parameter: b_crit = 3√3 M ≈ 2.598
 vec3 gravAccel(vec3 x, vec3 v) {
     float r2 = dot(x, x);
-    // Softening instead of zero acceleration near center (v1.4.0)
-    if (r2 < 0.001) r2 = 0.001;
+    // Softening to avoid singularity at r=0
+    if (r2 < SOFTEN_R2) r2 = SOFTEN_R2;
     float r = sqrt(r2);
     float r3 = r2 * r;
 
     float vx = dot(v, x);
 
-    // Correct 1PN Schwarzschild null geodesic acceleration:
+    // 1PN Schwarzschild null geodesic acceleration:
     // a = -(M/r³)[x - 4(v·x)v + 3(v·x)²/r² · x]
+    // Radial term:        -M/r³ · x              (inward pull)
+    // Velocity term:      +4M/r³ · (x·v) · v     (transverse deflection)
+    // Quadratic term:     -3M/r⁵ · (x·v)² · x    (nonlinear GR correction)
     vec3 term1 = x;
     vec3 term2 = -4.0 * vx * v;
     vec3 term3 = 3.0 * (vx * vx / r2) * x;
@@ -168,8 +214,8 @@ vec3 gravAccel(vec3 x, vec3 v) {
     return -(M / r3) * (term1 + term2 + term3);
 }
 
-// ═══ Nébuleuse factorisée (v1.4.0) ═══
-// Calcule la couleur et l'intensité de la nébuleuse à partir d'une direction.
+// ═══ Nebula color from direction ═══
+// Computes nebula color and intensity from a viewing direction.
 vec3 nebulaColor(vec3 dir, float baseHueShift) {
     float n1 = sin(dir.x * 3.0 + dir.y * 2.0 + dir.z * 1.5 + baseHueShift);
     float n2 = sin(dir.x * 5.0 - dir.y * 4.0 + dir.z * 3.0 + 1.0 + baseHueShift);
@@ -195,13 +241,14 @@ vec3 nebulaColor(vec3 dir, float baseHueShift) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 float hash1(vec3 p) {
-    p = fract(p * vec3(123.34, 456.21, 789.98));
+    // Seed constants for 3D spatial hashing
+    p = fract(p * vec3(HASH_SEED_C, HASH_SEED_D, HASH_SEED_E));
     p += dot(p, p.yxz + 19.19);
     return fract((p.x + p.y) * p.z);
 }
 
 float hash2(vec3 p) {
-    return fract(sin(dot(p, vec3(269.5, 183.3, 419.2))) * 43758.5453);
+    return fract(sin(dot(p, vec3(HASH_SEED_F, HASH_SEED_G, HASH_SEED_H))) * HASH_SCALE);
 }
 
 vec3 starfield(vec3 dir) {
@@ -209,17 +256,17 @@ vec3 starfield(vec3 dir) {
     vec3 id = floor(p);
 
     float h1 = hash1(id);
-    float star = smoothstep(0.9960, 0.99995, h1);
+    float star = smoothstep(STAR_DENSITY, STAR_BRIGHTNESS, h1);
     float h2 = hash2(id);
     float bright = mix(0.5, 2.0, h2);
     float att = 1.0 / (1.0 + length(fract(p)) * 2.0);
     float sc = bright * star * att;
 
     float h3 = hash1(id * 2.718 + 50.0);
-    sc += smoothstep(0.9940, 0.9998, h3) * 0.3;
+    sc += smoothstep(STAR_Faint_1, 0.9998, h3) * 0.3;
 
     float h4 = hash1(id * 3.14159 + 200.0);
-    sc += smoothstep(0.9930, 0.9999, h4) * 0.1;
+    sc += smoothstep(STAR_Faint_2, 0.9999, h4) * 0.1;
 
     // Légère teinte bleutée pour mieux ressortir sur les reflets
     vec3 starColor = vec3(sc * 5.0) * vec3(0.95, 0.97, 1.0);
@@ -274,12 +321,13 @@ vec3 camRight() {
 vec3 camUp() { return cross(camFwd(), camRight()); }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  RAY MARCHING 3D avec RK4
+//  RAY MARCHING 3D with RK4
 //
-//  Intégration du système d'ordre 1 :
+//  Integrate 1st-order system:
 //    dx/dλ = v
 //    dv/dλ = gravAccel(pos, v)
-//  Normalisation de |v|=1 après chaque pas RK4 complet.
+//  Velocity magnitude is preserved by the 1PN acceleration structure
+//  (no explicit normalization needed for null geodesics).
 // ═══════════════════════════════════════════════════════════════════════════════
 
 vec4 rayMarch(vec2 uv) {
@@ -307,15 +355,14 @@ vec4 rayMarch(vec2 uv) {
 
     // Impact parameter — Schwarzschild photon capture threshold
     // Photon sphere at r = 3M, critical impact parameter b_crit = 3√3 M
-    // GR-corrected: b_GR = b * sqrt(1 - 2M/r_cam)   (v1.4.0: * au lieu de /)
-    // The local impact parameter at finite distance is b_loc = b_∞ / √(1-2M/r_cam)
-    // So the condition b_loc < b_crit becomes: b < b_crit * √(1-2M/r_cam)
+    // Local impact parameter at finite distance: b_loc = b_∞ / √(1-2M/r_cam)
+    // Capture condition b_loc < b_crit → b < b_crit * √(1-2M/r_cam)
     vec3 crossProd = cross(ro, rd);
     float b = length(crossProd);
     float b_crit = 3.0 * sqrt(3.0) * M;
     float camDist = length(ro);
     float gravFactor = sqrt(max(0.01, 1.0 - EH / camDist));
-    bool captured = (b < b_crit * gravFactor);  // v1.4.0: * au lieu de /
+    bool captured = (b < b_crit * gravFactor);
 
     bool rayInteracted = false;
 
@@ -346,34 +393,35 @@ vec4 rayMarch(vec2 uv) {
         else h = 4.0;                               // Far field — minimal bending
 
         // RK4 — 4 evaluations of acceleration at intermediate positions
-        // v1.4.0: k3p uses k3v (was k2p — corrupted RK4 fixed)
+        // Standard RK4 for 1st-order system: dx/dλ=v, dv/dλ=a(x,v)
+        // kNPos = velocity (unchanged), kNVel = acceleration at stage N
         vec3 a1 = gravAccel(pos, vel);
-        vec3 k1p = vel, k1v = a1;
+        vec3 k1Pos = vel, k1Vel = a1;
 
-        vec3 p2 = pos + 0.5*h*k1p;
-        vec3 v2 = vel + 0.5*h*k1v;
+        vec3 p2 = pos + 0.5*h*k1Pos;
+        vec3 v2 = vel + 0.5*h*k1Vel;
         vec3 a2 = gravAccel(p2, v2);
-        vec3 k2v = a2;
-        vec3 k2p = vel + 0.5*h*k2v;
+        vec3 k2Vel = a2;
+        vec3 k2Pos = vel;
 
-        vec3 p3 = pos + 0.5*h*k2p;
-        vec3 v3 = vel + 0.5*h*k2v;
+        vec3 p3 = pos + 0.5*h*k2Pos;
+        vec3 v3 = vel + 0.5*h*k2Vel;
         vec3 a3 = gravAccel(p3, v3);
-        vec3 k3v = a3;
-        vec3 k3p = vel + 0.5*h*k3v;   // v1.4.0: k3v au lieu de k2p
+        vec3 k3Vel = a3;
+        vec3 k3Pos = vel;
 
-        vec3 p4 = pos + h*k3p;
-        vec3 v4 = vel + h*k3v;
+        vec3 p4 = pos + h*k3Pos;
+        vec3 v4 = vel + h*k3Vel;
         vec3 a4 = gravAccel(p4, v4);
-        vec3 k4p = vel + h*k3v;
-        vec3 k4v = a4;
+        vec3 k4Pos = vel;
+        vec3 k4Vel = a4;
 
         prevPos = pos;
-        pos = pos + (h/6.0) * (k1p + 2.0*k2p + 2.0*k3p + k4p);
-        vel = normalize(vel + (h/6.0) * (k1v + 2.0*k2v + 2.0*k3v + k4v));
+        pos = pos + (h/6.0) * (k1Pos + 2.0*k2Pos + 2.0*k3Pos + k4Pos);
+        vel = vel + (h/6.0) * (k1Vel + 2.0*k2Vel + 2.0*k3Vel + k4Vel);
 
-        // ── Tracking des orbites pour l'anneau de photons ──────────────────
-        // diskFrame positions computed once per step (v1.4.0: avoid redundant calls)
+        // ── Photon orbit tracking ──────────────────────────────────────────
+        // Count angle swept in disk plane to detect photon ring orbits
         vec3 posDF = diskToDiskFrame(pos);
         vec3 prevDF = diskToDiskFrame(prevPos);
 
@@ -386,7 +434,7 @@ vec4 rayMarch(vec2 uv) {
             float crossMag = abs(deltaD.x * lastPosD.z - deltaD.z * lastPosD.x);
             float dotXZ = dot(deltaD.xz, lastPosD.xz);
             float rXZ = max(length(lastPosD.xz), 0.01);
-            float angleStep = atan(crossMag, dotXZ / rXZ);
+            float angleStep = atan(crossMag, dotXZ) / rXZ;
             totalAngle += max(angleStep, 0.0);
             lastPos = pos;
 
@@ -403,8 +451,8 @@ vec4 rayMarch(vec2 uv) {
             if (orbitCount > 5) stuck = true;
         }
 
-        // ── Intersection disque (y=0, incliné par uDiskPsi) ────────────────
-        // v1.4.0: réutilise posDF/prevDF calculés plus haut
+        // ── Disk intersection (y=0, tilted by uDiskPsi) ────────────────────
+        // Reuse posDF/prevDF computed in orbit tracking section
         float prevYDisk = prevDF.y;
 
         if (prevYDisk * posDF.y < 0.0) {
@@ -417,16 +465,16 @@ vec4 rayMarch(vec2 uv) {
                 rayInteracted = true;
 
                 // Novikov-Thorne temperature profile: T ∝ r^(-3/4) * (1 - sqrt(r_in/r))^(1/4)
-                float nr = pow(hr, -0.75) * pow(1.0 - sqrt(DISK_IN / hr), 0.25);
-                // Peak at r≈4.08, value≈0.214 for DISK_IN=3.0
-                float tNorm = clamp(nr / 0.214 * 0.55, 0.0, 1.0);
+                float tempProfile = pow(hr, -0.75) * pow(1.0 - sqrt(DISK_IN / hr), 0.25);
+                // Normalized temperature: peak at r≈4.08 for DISK_IN=3.0
+                float tNorm = clamp(tempProfile / TEMP_PEAK * TEMP_SCALE, 0.0, 1.0);
 
-                // Emissivity profile
+                // Emissivity profile — radial falloff near inner edge
                 float profile = pow(1.0 - DISK_IN / hr, 0.1)
                               * (1.0 - smoothstep(0.90, 0.995, DISK_IN / hr));
                 float angle = atan(hitDisk.z, hitDisk.x);
 
-                // Turbulence — v1.4.0: appel factorisé avec paramètre
+                // Turbulence factorized call
                 float turb = diskTurbulence(hitDisk.xz, uTime, uRealistic > 0.5);
                 float turbFactor = 0.6 + 0.4 * turb;
                 vec3 discCol = blackbody(tNorm) * profile * turbFactor * 2.5;
@@ -435,7 +483,7 @@ vec4 rayMarch(vec2 uv) {
                 // Orbital velocity measured by static observer in Schwarzschild:
                 //   β = √(M / (r - 2M))
                 float beta = sqrt(M / max(hr - 2.0 * M, 0.01));
-                beta = clamp(beta, 0.0, 0.95);
+                beta = clamp(beta, 0.0, BETA_MAX);
 
                 // Tangential velocity (azimuthal direction in disk frame)
                 vec3 vTangentDisk = vec3(-sin(angle), 0.0, cos(angle));
@@ -461,13 +509,13 @@ vec4 rayMarch(vec2 uv) {
 
                 // Beaming: g³ for monochromatic flux
                 float beamingFactor = g * g * g;
-                beamingFactor = clamp(beamingFactor, 0.001, 8.0);
+                beamingFactor = clamp(beamingFactor, BEAM_MIN, BEAM_MAX);
                 discCol *= beamingFactor;
 
                 // Color shift from gravitational redshift
                 vec3 hotColor = vec3(1.0, 0.95, 0.85);
                 vec3 coolColor = vec3(0.85, 0.4, 0.1);
-                discCol = mix(discCol, discCol * mix(coolColor, hotColor, gravRedshiftFactor), 0.3);
+                discCol = mix(discCol, discCol * mix(coolColor, hotColor, gravRedshiftFactor), COLOR_MIX);
 
                 // Vertical Gaussian profile
                 float zf = exp(-hitDisk.y * hitDisk.y / (2.0 * DISK_SIGMA * DISK_SIGMA));
@@ -479,27 +527,25 @@ vec4 rayMarch(vec2 uv) {
                 // Photon ring boost: rays near 1 orbit get enhanced brightness
                 float photonRingBoost = 1.0;
                 if (numOrbits >= 0.5 && numOrbits <= 1.5) {
-                    float ringWidth = 0.35;
-                    photonRingBoost = 1.0 + 4.0 * smoothstep(ringWidth, 0.0, abs(numOrbits - 1.0));
+                    photonRingBoost = 1.0 + RING_BOOST * smoothstep(RING_WIDTH, 0.0, abs(numOrbits - 1.0));
                 }
 
                 // Smooth falloff for higher-order images
-                float orbitFade = 1.0 - smoothstep(0.5, 2.0, numOrbits) * 0.85;
-                float directFade = 1.0 - smoothstep(0.0, 0.3, numOrbits) * 0.1;
+                float orbitFade = 1.0 - smoothstep(ORBIT_FADE_START, ORBIT_FADE_END, numOrbits) * 0.85;
+                float directFade = 1.0 - smoothstep(0.0, 0.3, numOrbits) * DIRECT_FADE_MAX;
                 float orbitFactor = orbitFade * directFade;
 
                 discCol *= clamp(photonRingBoost, 1.0, 5.0) * orbitFactor;
 
                 // Beer-Lambert accumulation
-                float diskAbsorption = 0.6;
-                diskAcc += discCol * diskTransmittance * diskAbsorption;
-                diskTransmittance *= (1.0 - diskAbsorption);
+                diskAcc += discCol * diskTransmittance * DISK_ABS;
+                diskTransmittance *= (1.0 - DISK_ABS);
             }
         }
         prevPos = pos;
     }
 
-    // v1.4.0: clamp diskAcc removed — tone mapping handles the range
+    // Prevent zero transmittance artifacts
     diskTransmittance = max(diskTransmittance, 0.02);
 
     vec3 color;
@@ -531,7 +577,7 @@ vec4 rayMarch(vec2 uv) {
     float neb = (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * 0.5 + 0.5;
     neb *= bandMask;
 
-    // Nébuleuse background (factorisée v1.4.0)
+    // Background nebula
     vec3 nebColor = nebulaColor(dir, 3.0) * neb * 0.8;
 
     color += nebColor;
@@ -550,7 +596,7 @@ vec4 rayMarch(vec2 uv) {
         color = vec3(0.0);
     }
 
-    // ── Tone mapping — ACES (v1.4.0: remplace Reinhard c/(1+c)) ──
+    // ── Tone mapping — ACES filmic (replaces Reinhard) ──
     color = (color * (2.51 * color + 0.03)) / (color * (2.43 * color + 0.59) + 0.14);
     color = clamp(color, 0.0, 1.0);
 

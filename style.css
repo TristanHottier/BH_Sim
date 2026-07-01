@@ -1,70 +1,115 @@
+/* ── Custom properties ─────────────────────────────────────────────────────── */
+:root {
+    --color-bg: #000;
+    --color-text: #ccc;
+    --color-text-dim: #99a;
+    --color-text-muted: #778;
+    --color-primary: #5577aa;
+    --color-primary-light: #8899bb;
+    --color-primary-hover: #aabbdd;
+    --color-accent: #cc6633;
+    --color-white: #fff;
+    --font-sans: 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'Consolas', monospace;
+    --hud-padding: 16px;
+    --hud-transition: 1.5s ease;
+}
+
+/* ── Reset ────────────────────────────────────────────────────────────────── */
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', system-ui, sans-serif; color: #ccc; }
+html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--color-bg);
+    font-family: var(--font-sans); color: var(--color-text);
+}
 canvas { display: block; width: 100vw; height: 100vh; cursor: grab; touch-action: none; }
 canvas:active { cursor: grabbing; }
-#hud { position: fixed; top: 0; left: 0; right: 0; pointer-events: none; padding: 16px; display: flex; flex-direction: column; gap: 6px; z-index: 10; }
-#title { font-size: 18px; font-weight: 600; color: #fff; text-shadow: 0 0 20px rgba(100,140,255,0.4); letter-spacing: 0.5px; }
-#title .subtitle { display: block; font-size: 10px; font-weight: 400; color: #8899bb; letter-spacing: 1px; margin-top: 2px; text-transform: uppercase; }
-#stats { display: flex; gap: 16px; font-size: 11px; color: #99a; font-family: 'Consolas', monospace; flex-wrap: wrap; align-items: baseline; }
+
+/* ── HUD ──────────────────────────────────────────────────────────────────── */
+#hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    pointer-events: none;
+    padding: var(--hud-padding);
+    display: flex; flex-direction: column; gap: 6px;
+    z-index: 10;
+}
+#title {
+    font-size: 18px; font-weight: 600; color: var(--color-white);
+    text-shadow: 0 0 20px rgba(100,140,255,0.4);
+    letter-spacing: 0.5px;
+}
+#title .subtitle {
+    display: block; font-size: 10px; font-weight: 400;
+    color: var(--color-primary-light); letter-spacing: 1px;
+    margin-top: 2px; text-transform: uppercase;
+}
+#stats {
+    display: flex; gap: 16px; font-size: 11px;
+    color: var(--color-text-dim);
+    font-family: var(--font-mono); flex-wrap: wrap; align-items: baseline;
+}
 #stats .version-badge {
-    display: inline-block;
-    padding: 1px 7px;
-    border-radius: 10px;
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
+    display: inline-block; padding: 1px 7px; border-radius: 10px;
+    font-size: 9px; font-weight: 600; letter-spacing: 0.3px;
     background: rgba(85, 119, 170, 0.2);
-    color: #8899bb;
+    color: var(--color-primary-light);
     border: 1px solid rgba(85, 119, 170, 0.3);
-    white-space: nowrap;
-    cursor: default;
+    white-space: nowrap; cursor: default;
     transition: background 0.2s, color 0.2s;
 }
 #stats .version-badge:hover {
     background: rgba(85, 119, 170, 0.35);
-    color: #aabbdd;
+    color: var(--color-primary-hover);
 }
-#controls { font-size: 10px; color: #778; line-height: 1.8; margin-top: 2px; }
+#controls { font-size: 10px; color: var(--color-text-muted); line-height: 1.8; margin-top: 2px; }
 #controls p { margin: 0; }
-#controls strong { color: #99a; }
-#sliders { font-size: 10px; color: #889; font-family: 'Consolas', monospace; line-height: 2; margin-top: 6px; display: flex; flex-direction: column; gap: 2px; pointer-events: auto; }
-#sliders label { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
-#sliders input[type="range"] { flex: 1; max-width: 140px; accent-color: #5577aa; height: 4px; cursor: pointer; }
+#controls strong { color: var(--color-text-dim); }
+#sliders {
+    font-size: 10px; color: var(--color-primary-light);
+    font-family: var(--font-mono); line-height: 2;
+    margin-top: 6px; display: flex; flex-direction: column; gap: 2px;
+    pointer-events: auto;
+}
+#sliders label {
+    display: flex; align-items: center; gap: 6px;
+    cursor: pointer; user-select: none;
+}
+#sliders input[type="range"] {
+    flex: 1; max-width: 140px; accent-color: var(--color-primary);
+    height: 4px; cursor: pointer;
+}
 #sliders input[type="range"]:focus-visible,
 #sliders input[type="checkbox"]:focus-visible {
-    outline: 2px solid #5577aa;
+    outline: 2px solid var(--color-primary);
     outline-offset: 2px;
 }
-#sliders span { min-width: 36px; text-align: right; color: #99a; }
-#sliders .warning { color: #cc6633; font-size: 9px; }
-#hud.fade { opacity: 0.15; transition: opacity 1.5s ease; }
+#sliders span { min-width: 36px; text-align: right; color: var(--color-text-dim); }
+#sliders .warning { color: var(--color-accent); font-size: 9px; }
+
+/* ── HUD fade ─────────────────────────────────────────────────────────────── */
+#hud.fade { opacity: 0.15; transition: opacity var(--hud-transition); }
 #hud:hover, #hud.active { opacity: 1 !important; transition: opacity 0.3s ease; }
 
-/* Respect user's motion preference */
+/* ── Reduced motion ───────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
     #hud.fade {
-        opacity: 1 !important;
-        transition: none;
+        opacity: 1 !important; transition: none;
     }
-    #loading {
-        transition: none;
-    }
-    #stats .version-badge {
-        transition: none;
-    }
+    #loading { transition: none; }
+    #stats .version-badge { transition: none; }
 }
 
-/* Loading overlay */
+/* ── Loading overlay ──────────────────────────────────────────────────────── */
 #loading {
     position: fixed; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    background: #000; color: #8899bb; font-family: system-ui, sans-serif;
-    font-size: 18px; z-index: 100;
+    background: var(--color-bg); color: var(--color-primary-light);
+    font-family: system-ui, sans-serif; font-size: 18px; z-index: 100;
     transition: opacity 0.4s ease;
 }
 #loading.hidden { opacity: 0; pointer-events: none; }
 
-/* Tablet and up */
+/* ── Tablet and up ────────────────────────────────────────────────────────── */
 @media (min-width: 600px) {
     #hud { padding: 20px 24px; }
     #title { font-size: 20px; }

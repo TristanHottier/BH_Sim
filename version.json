@@ -1,6 +1,6 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "commit": "HEAD",
   "date": "2026-07-01",
-  "description": "v1.4.0 — Physics & GLSL audit fixes: correct 1PN geodesic accel (add quadratic term, fix factor), fix impact parameter (* vs /), fix RK4 k3p (k3v not k2p), softening gravAccel instead of zero, ACES tone mapping, factorize nebulaColor, diskTurbulence with params, vectorize blackbody, const float PI, remove dead uTimeOffset, remove redundant diskToDiskFrame calls, remove diskAcc clamp, remove resetHudFade from render loop, factorize formatCamInfo, AbortController timeout on version fetch, full reset on R key, passive resize, hoist camInfoEl, single parseFloat, replace innerHTML with createElement"
+  "description": "v1.5.0 — Version bump to 1.5.0"
 }
