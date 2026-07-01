@@ -591,10 +591,15 @@ vec4 rayMarch(vec2 uv) {
     }
 
   // ═══ Bord d'ombre + photon sphere glow ═══
+    // Shadow angular radius for static observer at distance r in Schwarzschild:
+    //   sin(α) = (b_crit / r) * sqrt(1 - 2M/r)
+    // The sqrt factor accounts for spatial curvature at the observer's position.
     {
-        float screenDist = length(xy);
         float camDistVal = length(ro);
-        float R_shadow = b_crit / (camDistVal * tanFov);
+        float sinAlpha = (b_crit / camDistVal) * sqrt(max(0.01, 1.0 - EH / camDistVal));
+        float alpha = asin(min(1.0, sinAlpha));
+        float R_shadow = tan(alpha) / tanFov;
+        float screenDist = length(xy);
         float r_normalized = screenDist / R_shadow;
         float shadowEdge = smoothstep(1.0, 1.08, r_normalized) * smoothstep(1.2, 1.0, r_normalized);
         color += vec3(0.12, 0.15, 0.25) * shadowEdge * 0.08;
@@ -602,9 +607,11 @@ vec4 rayMarch(vec2 uv) {
 
   // ═══ Cercle blanc délimitant l'ombre du trou noir ═══
     if (uShowShadow > 0.5) {
+        float camDistVal = length(ro);
+        float sinAlpha = (b_crit / camDistVal) * sqrt(max(0.01, 1.0 - EH / camDistVal));
+        float alpha = asin(min(1.0, sinAlpha));
+        float R_shadow = tan(alpha) / tanFov;
         float screenDist = length(xy);
-        // Same screen-space conversion as the shadow edge glow above
-        float R_shadow = b_crit / (length(ro) * tanFov);
         float r_normalized = screenDist / R_shadow;
         float border = smoothstep(0.985, 0.995, r_normalized) * smoothstep(1.005, 0.995, r_normalized);
         color += vec3(1.0) * border;
