@@ -1,6 +1,6 @@
 {
-  "version": "1.0.3",
-  "commit": "c8942cf",
+  "version": "1.0.4",
+  "commit": "1eca7c2",
   "date": "2026-07-01",
-  "description": "Fix disk over-brightness — remove *10.0 gain, clamp beaming to [0.001, 5.0]"
+  "description": "Fix disk too dim — base emissivity gain 2.5, beaming clamp 8.0"
 }
