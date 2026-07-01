@@ -29,7 +29,7 @@ redshift, and procedural turbulence.
 
 | Field               | Value      |
 | ------------------- | ---------- |
-| **Current version** | `v1.5.3`   |
+| **Current version** | `v1.6.0`   |
 | **Latest commit**   | pending    |
 | **Release date**    | 2026-07-01 |
 

@@ -1,6 +1,6 @@
 {
-    "version": "1.5.3",
+    "version": "1.6.0",
     "commit": "HEAD",
     "date": "2026-07-01",
-    "description": "v1.5.3 — Version sync across all files, CI failure fixes"
+    "description": "v1.6.0 — Audit fixes: GPU perf, a11y, security, PWA, physics, docs"
 }

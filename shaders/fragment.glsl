@@ -41,11 +41,11 @@ const float COLOR_MIX    = 0.3;          // Mix factor for gravitational redshif
 const float DISK_ABS     = 0.3;          // Beer-Lambert absorption per disk intersection (0.3 = optically thin, 0.6 = too opaque)
 
 // ── Photon ring ─────────────────────────────────────────────────────────────
-const float RING_WIDTH   = 0.35;         // Width of photon ring boost region (in orbit units)
-const float RING_BOOST   = 4.0;          // Max brightness multiplier at 1 orbit
-const float ORBIT_FADE_START = 0.5;      // Start fading higher-order images
-const float ORBIT_FADE_END   = 2.0;      // Fully faded beyond this orbit count
-const float DIRECT_FADE_MAX  = 0.1;      // Max fade for direct (0-orbit) rays
+// Higher-order images decay exponentially: I_n ∝ exp(-α·n)
+// α = 2π/√27 ≈ 1.209 is the Lyapunov exponent of the Schwarzschild photon sphere
+// A visual gain factor compensates for the simplified thin-disk model
+const float PHOTON_RING_DECAY = 1.2;     // Physical decay rate (≈ 2π/√27)
+const float PHOTON_RING_GAIN  = 1.5;     // Visual gain for first-order images
 
 // ── Star field thresholds ───────────────────────────────────────────────────
 const float STAR_DENSITY   = 0.9960;     // Primary star cell density threshold
@@ -512,21 +512,13 @@ vec4 rayMarch(vec2 uv) {
                 float zf = exp(-hitDisk.y * hitDisk.y / (2.0 * DISK_SIGMA * DISK_SIGMA));
                 discCol *= zf;
 
-                // ═══ Photon ring boost + orbit falloff ═══
+                // ═══ Photon ring: physical exponential falloff ═══
+                // I_n ∝ exp(-α·n) · gain, where α = 2π/√27 ≈ 1.209 (Lyapunov exponent)
+                // gain compensates for the simplified thin-disk model
                 float numOrbits = totalAngle / (2.0 * PI);
+                float orbitFactor = PHOTON_RING_GAIN * exp(-PHOTON_RING_DECAY * numOrbits);
 
-                // Photon ring boost: rays near 1 orbit get enhanced brightness
-                float photonRingBoost = 1.0;
-                if (numOrbits >= 0.5 && numOrbits <= 1.5) {
-                    photonRingBoost = 1.0 + RING_BOOST * smoothstep(RING_WIDTH, 0.0, abs(numOrbits - 1.0));
-                }
-
-                // Smooth falloff for higher-order images
-                float orbitFade = 1.0 - smoothstep(ORBIT_FADE_START, ORBIT_FADE_END, numOrbits) * 0.85;
-                float directFade = 1.0 - smoothstep(0.0, 0.3, numOrbits) * DIRECT_FADE_MAX;
-                float orbitFactor = orbitFade * directFade;
-
-                discCol *= clamp(photonRingBoost, 1.0, 5.0) * orbitFactor;
+                discCol *= orbitFactor;
 
                 // Beer-Lambert accumulation
                 diskAcc += discCol * diskTransmittance * DISK_ABS;

@@ -160,6 +160,35 @@ This shifts the background sky direction toward the black hole center.
 
 ---
 
+## Photon Ring Image Decay
+
+When a light ray orbits the photon sphere ($r = 3M = 1.5$), it produces a "photon ring" — a series of increasingly
+demagnified images of the accretion disk. The brightness of these images decays exponentially with the number of orbits
+$n$ around the photon sphere:
+
+$$I_n \propto e^{-\alpha \cdot n}$$
+
+where $\alpha$ is related to the **Lyapunov exponent** of the unstable circular photon orbit. For Schwarzschild:
+
+$$\alpha = \frac{2\pi}{\sqrt{27}} \approx 1.209$$
+
+In practice, the simulation uses $\alpha = 1.2$ (rounded for numerical stability), with a **visual gain factor** of 1.5
+to compensate for the simplified thin-disk model:
+
+$$\text{orbitFactor}(n) = 1.5 \cdot e^{-1.2 \cdot n}$$
+
+| $n$ (orbits) | $1.5 \cdot e^{-1.2n}$ | Interpretation |
+|-------------|----------------------|----------------|
+| 0 (direct)  | 1.500                | Enhanced direct view |
+| 1           | 0.452                | ~30% of direct brightness |
+| 2           | 0.136                | ~9% |
+| 3           | 0.041                | ~2.7% |
+| 4           | 0.012                | ~0.8% |
+
+The gain factor is not a physical parameter — it compensates for the simplified thin-disk model and single-pass rendering.
+
+---
+
 ## References
 
 - Carroll, S.M. (2004). *Spacetime and Geometry*. Addison-Wesley. (Ch. 5-6)
