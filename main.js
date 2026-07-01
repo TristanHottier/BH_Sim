@@ -17,6 +17,7 @@ const sliderPsiDisk = document.getElementById('sliderPsiDisk');
 const valPsiDisk = document.getElementById('valPsiDisk');
 const checkRealistic = document.getElementById('checkRealistic');
 const inputResolution = document.getElementById('inputResolution');
+const valResolution = document.getElementById('valResolution');
 const loading = document.getElementById('loading');
 
 // ── WebGL error handling ────────────────────────────────────────────────────
@@ -384,6 +385,7 @@ window.addEventListener('keydown', (e) => {
         valPsiDisk.textContent = '0.0°';
         checkRealistic.checked = false;
         inputResolution.value = 75;
+        valResolution.textContent = '75%';
         if (camInfoEl) camInfoEl.textContent = formatCamInfo();
         scheduleResize();
     }
@@ -414,6 +416,6 @@ inputResolution.addEventListener('input', () => {
     if (isNaN(val)) val = 75;
     val = Math.max(10, Math.min(100, val));
     resolutionPercent = val;
-    inputResolution.value = val;
+    valResolution.textContent = val + '%';
     scheduleResize();
 });
