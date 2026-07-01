@@ -38,7 +38,7 @@ uniform float uDiskPsi;
 uniform float uRealistic;
 uniform float uTimeOffset;
 uniform float uSeed;
-uniform float uShowShadow;
+// uShowShadow removed — shadow border feature removed
 
 
 vec3 camFwd() { return normalize(-uCamPos); }
@@ -596,34 +596,8 @@ vec4 rayMarch(vec2 uv) {
         }
     }
 
-  // ═══ Bord d'ombre + photon sphere glow ═══
-    // Use the ray's final position to determine the shadow boundary.
-    // If the ray reached r < EH, the shadow radius is at this screen distance.
-    // We use a fixed empirical shadow radius based on the analytical formula
-    // but adjusted to match the actual captured region in the simulation.
-    float camDistVal = length(ro);
-    float sinAlpha = (b_crit / camDistVal) * sqrt(max(0.01, 1.0 - EH / camDistVal));
-    float alpha = asin(min(1.0, sinAlpha));
-    float R_shadow = tan(alpha) / tanFov;
-    // The actual shadow in the simulation may differ slightly from the
-    // analytical prediction due to the post-Newtonian approximation in
-    // gravAccel. We adjust R_shadow to match the captured region.
-    // captured is determined by the same formula, so they should match.
-    // If they don't, the discrepancy comes from RK4 discretization errors.
-    {
-        float screenDist = length(xy);
-        float r_normalized = screenDist / R_shadow;
-        float shadowEdge = smoothstep(1.0, 1.08, r_normalized) * smoothstep(1.2, 1.0, r_normalized);
-        color += vec3(0.12, 0.15, 0.25) * shadowEdge * 0.08;
-    }
-
-  // ═══ Cercle blanc délimitant l'ombre du trou noir ═══
-    if (uShowShadow > 0.5) {
-        float screenDist = length(xy);
-        float r_normalized = screenDist / R_shadow;
-        float border = smoothstep(0.985, 0.995, r_normalized) * smoothstep(1.005, 0.995, r_normalized);
-        color += vec3(1.0) * border;
-    }
+  // Shadow border and glow removed — the dark shadow region is already
+// visually clear without an artificial overlay.
 
 
 

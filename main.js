@@ -19,7 +19,7 @@ let camPhi   = 80.0 * 3.14159265359 / 180.0;
 let camDist  = 45.0;
 let diskPsi  = 0.0;
 let realisticMode = false;
-let showShadow = false;
+// showShadow removed — shadow border feature removed
 let fullRes = false;
 
 let paused   = false;
@@ -173,7 +173,7 @@ function render() {
     gl.uniform1f(loc.uRealistic, realisticMode ? 1.0 : 0.0);
     gl.uniform1f(loc.uTimeOffset, 0.0);
     gl.uniform1f(loc.uSeed, realisticMode ? 1.0 : 0.0);
-    gl.uniform1f(loc.uShowShadow, showShadow ? 1.0 : 0.0);
+    // uShowShadow removed
     gl.uniform1f(loc.uAspect, canvas.width / canvas.height);
     gl.uniform1f(loc.uFOV, Math.PI / 3);
     gl.uniform1f(loc.uTime, simTime);
@@ -286,7 +286,6 @@ window.addEventListener('mousemove', () => {
 const sliderPsiDisk    = document.getElementById('sliderPsiDisk');
 const valPsiDisk       = document.getElementById('valPsiDisk');
 const checkRealistic   = document.getElementById('checkRealistic');
-const checkShadow      = document.getElementById('checkShadow');
 const checkFullRes     = document.getElementById('checkFullRes');
 
 sliderPsiDisk.addEventListener('input', () => {
@@ -303,10 +302,7 @@ checkRealistic.addEventListener('change', () => {
     gl.uniform1f(loc.uSeed, realisticMode ? 1.0 : 0.0);
 });
 
-checkShadow.addEventListener('change', () => {
-    showShadow = checkShadow.checked;
-    gl.uniform1f(loc.uShowShadow, showShadow ? 1.0 : 0.0);
-});
+// checkShadow removed — shadow border feature removed
 
 checkFullRes.addEventListener('change', () => {
     fullRes = checkFullRes.checked;
