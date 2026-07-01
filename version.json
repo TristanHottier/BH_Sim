@@ -1,6 +1,6 @@
 {
-  "version": "1.1.14",
-  "commit": "1516cc8",
+  "version": "1.1.15",
+  "commit": "90759a8",
   "date": "2026-07-01",
-  "description": "Shadow restored — captured check aligned with R_shadow, no empirical scaling"
+  "description": "Remove shadow border feature entirely"
 }
