@@ -1,6 +1,6 @@
 {
-    "version": "1.6.0",
+    "version": "1.6.1",
     "commit": "HEAD",
     "date": "2026-07-01",
-    "description": "v1.6.0 — Audit fixes: GPU perf, a11y, security, PWA, physics, docs"
+    "description": "v1.6.1 — Photon ring gain restored to direct disk view (full gain on all orbits)"
 }

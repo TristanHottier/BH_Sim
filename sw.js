@@ -6,7 +6,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 'use strict';
 
-const CACHE_NAME = 'bh-sim-v1.6.0';
+const CACHE_NAME = 'bh-sim-v1.6.1';
 const STATIC_ASSETS = [
     '/',
     'index.html',

@@ -76,7 +76,7 @@ uniform float uTime;
 uniform float uDiskPsi;
 uniform float uDiskCos;          // cos(diskPsi) — precomputed in JS
 uniform float uDiskSin;          // sin(diskPsi) — precomputed in JS
-uniform float uRealistic;
+uniform bool uRealistic;
 uniform float uSeed;
 
 // ── Rotate point into disk frame (Y=0 plane), then rotate back ───────────────
@@ -97,9 +97,8 @@ vec3 diskToWorld(vec3 p) {
 // en décalant l'angle azimutal en fonction du rayon et du temps.
 
 float hash(vec2 p) {
-    // Pre-multiplied seed offsets (computed once in JS as uniforms would be, but here fused)
-    vec2 seedOffset = vec2(uSeed * 991.0, uSeed * 743.0);
-    return fract(sin(dot(p, vec2(HASH_SEED_A + seedOffset.x, HASH_SEED_B + seedOffset.y))) * HASH_SCALE);
+    // Seed offsets precomputed from uSeed uniform
+    return fract(sin(dot(p, vec2(HASH_SEED_A + uSeed * 991.0, HASH_SEED_B + uSeed * 743.0))) * HASH_SCALE);
 }
 
 float noise(vec2 p) {
@@ -291,8 +290,8 @@ vec3 camUp() { return cross(camFwd(), camRight()); }
 //  Integrate 1st-order system:
 //    dx/dλ = v
 //    dv/dλ = gravAccel(pos, v)
-//  Velocity magnitude is preserved by the 1PN acceleration structure
-//  (no explicit normalization needed for null geodesics).
+//  Velocity magnitude may drift over many steps. For production use,
+//  periodic normalization (e.g. every 50 steps) is recommended.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 vec4 rayMarch(vec2 uv) {
@@ -335,6 +334,7 @@ vec4 rayMarch(vec2 uv) {
     bool captured = (b < b_crit * gravFactor);
 
     bool rayInteracted = false;
+    bool diskHit = false;
 
     for (int i = 0; i < MAX_STEPS; i++) {
         float r = length(pos);
@@ -452,6 +452,7 @@ vec4 rayMarch(vec2 uv) {
 
             if (hr >= DISK_IN && hr <= DISK_OUT) {
                 rayInteracted = true;
+                diskHit = true;
 
                 // Novikov-Thorne temperature profile: T ∝ r^(-3/4) * (1 - sqrt(r_in/r))^(1/4)
                 float tempProfile = pow(hr, -0.75) * pow(1.0 - sqrt(DISK_IN / hr), 0.25);
@@ -466,7 +467,7 @@ vec4 rayMarch(vec2 uv) {
                 float angle = atan(hitDisk.z, hitDisk.x);
 
                 // Turbulence factorized call
-                float turb = diskTurbulence(hitDisk.xz, uTime, uRealistic > 0.5);
+                float turb = diskTurbulence(hitDisk.xz, uTime, uRealistic);
                 float turbFactor = 0.6 + 0.4 * turb;
                 vec3 discCol = blackbody(tNorm) * profile * turbFactor * 2.5;
 
@@ -514,7 +515,7 @@ vec4 rayMarch(vec2 uv) {
 
                 // ═══ Photon ring: physical exponential falloff ═══
                 // I_n ∝ exp(-α·n) · gain, where α = 2π/√27 ≈ 1.209 (Lyapunov exponent)
-                // gain compensates for the simplified thin-disk model
+                // gain is a visual factor for the entire disk (compensates for thin-disk model)
                 float numOrbits = totalAngle / (2.0 * PI);
                 float orbitFactor = PHOTON_RING_GAIN * exp(-PHOTON_RING_DECAY * numOrbits);
 
@@ -536,17 +537,17 @@ vec4 rayMarch(vec2 uv) {
     // Fond noir
     color = vec3(0.0);
 
-    // ── Fond céleste ──
-    // Le ray marching a déjà intégré la courbure GR.
-    // Pour les fonds non-interagis, on utilise la direction initiale rd
-    // corrigée par une deflection faible en champ lointain.
-    vec3 dir = rd;
-    if (!captured && b > 0.01) {
-        // Approximate deflection angle: Δθ = 4M / b
-        float deflection = 4.0 * M / b;
-        vec3 toCenter = normalize(-ro);
-        vec3 deflectionDir = normalize(toCenter - dot(toCenter, rd) * rd);
-        dir = normalize(rd + deflectionDir * deflection);
+    // ── Fond céleste — direction finale du ray marching ──
+    // Utilise la direction effective du rayon après courbure gravitationnelle,
+    // approximée par le déplacement entre les deux dernières positions.
+    vec3 dir;
+    vec3 displacement = pos - prevPos;
+    float dispLen = length(displacement);
+    if (dispLen > 1e-4) {
+        dir = normalize(displacement);
+    } else {
+        // Fallback: ray barely moved from origin
+        dir = normalize(pos - ro);
     }
 
     // Voie lactée : bande colorée
@@ -575,7 +576,7 @@ vec4 rayMarch(vec2 uv) {
     color = mix(color, diskAcc, 1.0 - diskTransmittance);
 
     // Ombre du trou noir : rays captured and NOT passing through disk first
-    if (captured && diskTransmittance > 0.99) {
+    if (captured && !diskHit) {
         color = vec3(0.0);
     }
 

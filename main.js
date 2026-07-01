@@ -41,6 +41,19 @@ if (!gl) {
     throw new Error('WebGL2 required');
 }
 
+// ── WebGL context loss handling ─────────────────────────────────────────────
+canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    cancelAnimationFrame(renderID);
+    isDragging = false;
+    console.warn('BH_Sim: WebGL context lost');
+});
+
+canvas.addEventListener('webglcontextrestored', () => {
+    console.log('BH_Sim: WebGL context restored, reinitializing...');
+    init();
+});
+
 // ── Camera constants (single source of truth) ───────────────────────────────
 const CAM_DEFAULT_THETA = (100.0 * Math.PI) / 180.0;
 const CAM_DEFAULT_PHI = (80.0 * Math.PI) / 180.0;
@@ -212,7 +225,7 @@ function formatCamInfo() {
 }
 
 // ── Render loop ─────────────────────────────────────────────────────────────
-let prog, loc;
+let prog, loc, renderID;
 let lastFrameTime = performance.now();
 
 function render(now) {
@@ -242,7 +255,7 @@ function render(now) {
     gl.uniform1f(loc.uDiskPsi, diskPsi);
     gl.uniform1f(loc.uDiskCos, Math.cos(diskPsi));
     gl.uniform1f(loc.uDiskSin, Math.sin(diskPsi));
-    gl.uniform1f(loc.uRealistic, realisticMode ? 1.0 : 0.0);
+    gl.uniform1i(loc.uRealistic, realisticMode ? 1 : 0);
     gl.uniform1f(loc.uSeed, realisticMode ? 1.0 : 0.0);
     gl.uniform1f(loc.uAspect, canvas.width / canvas.height);
     gl.uniform1f(loc.uFOV, Math.PI / 3);
@@ -295,7 +308,7 @@ function init() {
     loc = l;
 
     resize();
-    requestAnimationFrame(render);
+    renderID = requestAnimationFrame(render);
 }
 
 // ── Mouse controls ──────────────────────────────────────────────────────────
@@ -416,7 +429,7 @@ sliderPsiDisk.addEventListener('input', () => {
 checkRealistic.addEventListener('change', () => {
     realisticMode = checkRealistic.checked;
     if (loc) {
-        gl.uniform1f(loc.uRealistic, realisticMode ? 1.0 : 0.0);
+        gl.uniform1i(loc.uRealistic, realisticMode ? 1 : 0);
         gl.uniform1f(loc.uSeed, realisticMode ? 1.0 : 0.0);
     }
 });

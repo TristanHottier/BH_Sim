@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta
             name="description"
             content="Interactive real-time simulation of gravitational lensing around a Schwarzschild black hole rendered in WebGL2."
@@ -63,12 +63,35 @@
             </div>
             <div id="sliders">
                 <label
-                    >Disk tilt <input type="range" id="sliderPsiDisk" min="-180" max="180" step="1" value="0" aria-label="Disk tilt angle" aria-describedby="valPsiDisk" />
+                    >Disk tilt
+                    <input
+                        type="range"
+                        id="sliderPsiDisk"
+                        min="-180"
+                        max="180"
+                        step="1"
+                        value="0"
+                        aria-label="Disk tilt angle"
+                        aria-describedby="valPsiDisk"
+                    />
                     <span id="valPsiDisk" aria-hidden="true">0.0°</span></label
                 >
-                <label><input type="checkbox" id="checkRealistic" aria-label="Toggle realistic Kepler rotation mode" /> Realistic rotation (Kepler)</label>
                 <label
-                    >Resolution <input type="range" id="inputResolution" min="10" max="100" step="1" value="75" aria-label="Render resolution" aria-describedby="valResolution" />
+                    ><input type="checkbox" id="checkRealistic" aria-label="Toggle realistic Kepler rotation mode" />
+                    Realistic rotation (Kepler)</label
+                >
+                <label
+                    >Resolution
+                    <input
+                        type="range"
+                        id="inputResolution"
+                        min="10"
+                        max="100"
+                        step="1"
+                        value="75"
+                        aria-label="Render resolution"
+                        aria-describedby="valResolution"
+                    />
                     <span id="valResolution" aria-hidden="true">75%</span>
                     <span class="warning">⚠ GPU heavy above 90%</span></label
                 >

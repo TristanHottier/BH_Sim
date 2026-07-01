@@ -11,7 +11,14 @@ module.exports = [
                 navigator: 'readonly',
                 performance: 'readonly',
                 AbortSignal: 'readonly',
-                WebGL2RenderingContext: 'readonly'
+                WebGL2RenderingContext: 'readonly',
+                self: 'readonly',
+                caches: 'readonly',
+                CacheStorage: 'readonly',
+                ExtendableEvent: 'readonly',
+                FetchEvent: 'readonly',
+                Client: 'readonly',
+                Clients: 'readonly'
             }
         },
         rules: {

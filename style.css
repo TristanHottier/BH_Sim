@@ -40,6 +40,10 @@ canvas {
 canvas:active {
     cursor: grabbing;
 }
+canvas:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
 
 /* ── HUD ──────────────────────────────────────────────────────────────────── */
 #hud {
@@ -53,7 +57,6 @@ canvas:active {
     flex-direction: column;
     gap: 6px;
     z-index: 10;
- 
 }
 #title {
     font-size: 18px;

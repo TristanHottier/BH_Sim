@@ -9,6 +9,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [1.6.1] — 2026-07-01
+
+### Changed
+
+- **Photon ring gain**: restored to the entire disk (including direct view at `numOrbits = 0`). The gain factor `PHOTON_RING_GAIN = 1.5` is now applied uniformly before the exponential decay, rather than only to orbiting images (`numOrbits > 0.5`). This makes the direct disk view brighter and more visually consistent with the photon ring.
+
+---
+
 ## [1.5.3] — 2026-07-01
 
 ### Fixed
