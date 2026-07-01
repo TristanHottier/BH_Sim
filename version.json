@@ -1,6 +1,6 @@
 {
-  "version": "1.1.1",
-  "commit": "ef8e14b",
+  "version": "1.1.2",
+  "commit": "05ec14f",
   "date": "2026-07-01",
-  "description": "DISK_SIGMA 2.0"
+  "description": "DISK_SIGMA now has visual effect — inclination-based optical depth"
 }
