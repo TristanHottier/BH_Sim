@@ -16,7 +16,7 @@ const VERSION_TAG = document.getElementById('version');
 const sliderPsiDisk = document.getElementById('sliderPsiDisk');
 const valPsiDisk = document.getElementById('valPsiDisk');
 const checkRealistic = document.getElementById('checkRealistic');
-const checkFullRes = document.getElementById('checkFullRes');
+const inputResolution = document.getElementById('inputResolution');
 const loading = document.getElementById('loading');
 
 // ── WebGL error handling ────────────────────────────────────────────────────
@@ -47,7 +47,7 @@ let camPhi = CAM_DEFAULT_PHI;
 let camDist = CAM_DEFAULT_DIST;
 let diskPsi = 0.0;
 let realisticMode = false;
-let fullRes = false;
+let resolutionPercent = 75;
 
 let paused = false;
 let simTime = 0.0;
@@ -175,10 +175,10 @@ gl.bindVertexArray(null);
 // ── Resize — passive: true ──────────────────────────────────────────────────
 let resizeScheduled = false;
 function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, fullRes ? 2 : 1);
-    const scale = fullRes ? 1.0 : 0.75;
-    canvas.width = Math.floor(window.innerWidth * dpr * scale);
-    canvas.height = Math.floor(window.innerHeight * dpr * scale);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const scale = (resolutionPercent / 100) * dpr;
+    canvas.width = Math.floor(window.innerWidth * scale);
+    canvas.height = Math.floor(window.innerHeight * scale);
     gl.viewport(0, 0, canvas.width, canvas.height);
     resizeScheduled = false;
 }
@@ -379,12 +379,13 @@ window.addEventListener('keydown', (e) => {
         camDist = CAM_DEFAULT_DIST;
         diskPsi = 0.0;
         realisticMode = false;
-        fullRes = false;
+        resolutionPercent = 75;
         sliderPsiDisk.value = 0;
         valPsiDisk.textContent = '0.0°';
         checkRealistic.checked = false;
-        checkFullRes.checked = false;
+        inputResolution.value = 75;
         if (camInfoEl) camInfoEl.textContent = formatCamInfo();
+        scheduleResize();
     }
     if (e.key === ' ') {
         e.preventDefault();
@@ -408,7 +409,11 @@ checkRealistic.addEventListener('change', () => {
     }
 });
 
-checkFullRes.addEventListener('change', () => {
-    fullRes = checkFullRes.checked;
+inputResolution.addEventListener('input', () => {
+    let val = parseInt(inputResolution.value, 10);
+    if (isNaN(val)) val = 75;
+    val = Math.max(10, Math.min(100, val));
+    resolutionPercent = val;
+    inputResolution.value = val;
     scheduleResize();
 });
