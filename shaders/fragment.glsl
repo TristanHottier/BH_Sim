@@ -24,7 +24,7 @@ out vec4 fragColor;
 #define EH           1.0
 #define DISK_IN      3.0   // ISCO = 6M for Schwarzschild (M=0.5 → 3.0)
 #define DISK_OUT     25.0
-#define DISK_SIGMA   0.02   // Thin disk, Interstellar-style limb darkening
+#define DISK_SIGMA   2.0
 #define MAX_R        500.0
 #define GM           0.5
 #define TURB_N       6.0
