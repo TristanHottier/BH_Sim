@@ -176,7 +176,7 @@ gl.bindVertexArray(null);
 let resizeScheduled = false;
 function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, fullRes ? 2 : 1);
-    const scale = fullRes ? 1.0 : 0.5;
+    const scale = fullRes ? 1.0 : 0.75;
     canvas.width = Math.floor(window.innerWidth * dpr * scale);
     canvas.height = Math.floor(window.innerHeight * dpr * scale);
     gl.viewport(0, 0, canvas.width, canvas.height);
