@@ -42,8 +42,8 @@ This project visualises how gravity bends light near a non-rotating black hole, 
 
 | Field | Value |
 |-------|-------|
-| **Current version** | `v1.1.15` |
-| **Latest commit** | [90759a8](https://github.com/TristanHottier/BH_Sim/commit/90759a8) |
+| **Current version** | `v1.1.16` |
+| **Latest commit** | pending |
 | **Release date** | 2026-07-01 |
 
 Version history is tracked via [Git tags](https://github.com/TristanHottier/BH_Sim/tags) and reflected in the HUD badge during runtime. See [`version.json`](version.json) for machine-readable metadata.
@@ -82,8 +82,8 @@ The $3Mu^2$ term is the relativistic correction — absent in Newtonian mechanic
 | $\text{DISK}_\text{IN}$ | 1.125 | Inner radius of the accretion disk (adjusted ISCO for ALPHA = 8) |
 | $\text{DISK}_\text{OUT}$ | 25.0 | Outer radius of the accretion disk |
 | $\text{DISK}_\text{SIGMA}$ | 0.10 | Vertical disk thickness (Gaussian) |
-| RK4 steps | 200 max | Maximum integration steps |
-| Adaptive step | 0.01 → 1.5 | Step size (finer near the black hole) |
+| RK4 steps | 900 max | Maximum integration steps (adaptive) |
+| Adaptive step | 0.005 → 2.0 | Step size (finer near the black hole) |
 
 ### Why ALPHA = 8.0?
 
@@ -129,12 +129,14 @@ The integration step $h$ adapts based on distance to the black hole:
 
 | Distance $r$ | Step $h$ | Reason |
 |-------------|---------|--------|
-| $r < 2.0$ | 0.01 | Near the event horizon — rays bend sharply |
-| $2.0 < r < 3.0$ | 0.015 | Photon sphere region — high curvature |
-| $3.0 < r < 6.0$ | 0.03 | ISCO to inner disk — moderate curvature |
-| $6.0 < r < 12.0$ | 0.15 | Mid-disk — rays nearly straight |
-| $12.0 < r < 30.0$ | 0.6 | Outer disk — minimal bending |
-| $r > 30.0$ | 1.5 | Far field — rays are essentially straight lines |
+| $r < 1.2$ | 0.005 | Event horizon — rays bend most sharply |
+| $1.2 < r < 1.5$ | 0.01 | Photon sphere — extreme curvature |
+| $1.5 < r < 2.0$ | 0.02 | Just outside horizon — strong bending |
+| $2.0 < r < 3.0$ | 0.04 | Inner disk region — high curvature |
+| $3.0 < r < 6.0$ | 0.08 | ISCO to inner disk — moderate curvature |
+| $6.0 < r < 12.0$ | 0.2 | Mid-disk — rays nearly straight |
+| $12.0 < r < 30.0$ | 0.8 | Outer disk — minimal bending |
+| $r > 30.0$ | 2.0 | Far field — rays are essentially straight lines |
 
 This ensures accuracy near the black hole while keeping distant rays fast to compute.
 
@@ -283,7 +285,7 @@ This is a **visual simulation**, not a scientific tool. Several approximations a
 4. **No radiative transfer**: the disk is a thin emissive surface, not a volumetric medium. Self-occultation (the back side of the disk hidden by the black hole) is approximated but not fully modelled.
 5. **No polarization**: real black hole images carry polarisation information from synchrotron emission. This simulation computes intensity only.
 6. **Single-pass rendering**: no multi-pass bloom or anti-aliasing. The glow effect is a heuristic approximation.
-7. **200 RK4 steps max**: some rays may not converge fully, especially those making multiple orbits. This is a performance trade-off.
+7. **900 RK4 steps max** (adaptive): rays near the photon sphere use tiny steps (0.005–0.04), but most of the path uses large steps. An orbit safeguard (3 full orbits) prevents infinite loops. Some extreme rays may still not converge fully — a performance trade-off.
 
 ## Stack
 

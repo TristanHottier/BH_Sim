@@ -26,6 +26,7 @@ out vec4 fragColor;
 #define DISK_OUT     25.0
 #define DISK_SIGMA   0.02   // Thin disk, Interstellar-style limb darkening
 #define MAX_R        500.0
+#define MAX_STEPS    900
 #define GM           0.5
 #define TURB_N       6.0
 
@@ -310,6 +311,9 @@ vec4 rayMarch(vec2 uv) {
     int orbitCount = 0;
     float lastAngleThreshold = PI;
 
+    // Safeguard : éviter les orbites infinies autour de la sphère photonique
+    bool stuck = false;
+
     // Impact parameter — correct Schwarzschild photon capture threshold
     // Photon sphere at r = 3M, critical impact parameter b_crit = 3√3 M
     // b = |r × v| computed at camera position. In Schwarzschild, the
@@ -324,21 +328,26 @@ vec4 rayMarch(vec2 uv) {
     // Flag: track whether ray has interacted with disk or been captured
     bool rayInteracted = false;
 
- for (int i = 0; i < 200; i++) {
+ for (int i = 0; i < MAX_STEPS; i++) {
         float r = length(pos);
 
         if (r < EH && captured) break;
         if (r < EH && !captured) { captured = true; break; }
         if (r > MAX_R) break;
+        if (stuck) break;
 
    // ── Pas adaptatif ──
+        // Optimisé pour les rayons qui orbitent : on accélère les pas dès r > 1.5
+        // pour ne pas gaspiller des itérations dans la zone de forte courbure.
         float h;
-        if (r < 2.0) h = 0.01;
-        else if (r < 3.0) h = 0.015;
-        else if (r < 6.0) h = 0.03;
-        else if (r < 12.0) h = 0.15;
-        else if (r < 30.0) h = 0.6;
-        else h = 1.5;
+        if (r < 1.2) h = 0.005;
+        else if (r < 1.5) h = 0.01;
+        else if (r < 2.0) h = 0.02;
+        else if (r < 3.0) h = 0.04;
+        else if (r < 6.0) h = 0.08;
+        else if (r < 12.0) h = 0.2;
+        else if (r < 30.0) h = 0.8;
+        else h = 2.0;
 
    // RK4 — on évalue l'accélération à 4 positions intermédiaires
         // Chaque position intermédiaire est DÉCALÉE par rapport à la ligne droite,
@@ -387,6 +396,10 @@ vec4 rayMarch(vec2 uv) {
             }
             // Arrêter le tracking si on est loin ou trop proche
             if (r > 30.0 || r < EH) tracking = false;
+
+            // Safeguard : si le rayon reste confiné près du BH trop longtemps,
+            // c'est qu'il orbite de façon instable → on arrête.
+            if (orbitCount > 3) stuck = true;
         }
 
   // ── Intersection disque (y=0, incliné par uDiskPsi) ──
