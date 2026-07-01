@@ -561,10 +561,10 @@ vec4 rayMarch(vec2 uv) {
     color = mix(color, diskAcc, 1.0 - diskTransmittance);
 
     // Ombre du trou noir
-    // Shadow: captured rays that didn't hit any disk region
-    // captured is determined by b < b_crit * sqrt(1-2M/r_cam),
-    // which is the same formula used for R_shadow below.
-    if (captured && diskOpticalDepth < 0.01) {
+    // Shadow: rays that reached the event horizon (r < EH) after ray marching.
+    // This ensures the shadow size matches the physical R_shadow computed
+    // from the Schwarzschild metric, not the approximate captured check.
+    if (length(pos) < EH && diskOpticalDepth < 0.01) {
         color = vec3(0.0);
     }
 
