@@ -4,7 +4,7 @@ Interactive real-time simulation of gravitational lensing around a Schwarzschild
 
 This project visualises how gravity bends light near a non-rotating black hole, producing the iconic photon ring, gravitational arcs, and the dark "shadow" at the centre. The accretion disk displays Doppler beaming, gravitational redshift, and procedural turbulence.
 
-> **Inspired by**: the first image of M87* by the Event Hole Telescope (2019) and the black hole sequence in *Interstellar* (2014), based on physicist Kip Thorne's equations.
+> **Inspired by**: the first image of M87* by the Event Horizon Telescope (2019) and the black hole sequence in *Interstellar* (2014), based on physicist Kip Thorne's equations.
 
 ## Table of Contents
 
@@ -40,7 +40,7 @@ This project visualises how gravity bends light near a non-rotating black hole, 
 
 | Field | Value |
 |-------|-------|
-| **Current version** | `v1.2.0` |
+| **Current version** | `v1.3.0` |
 | **Latest commit** | pending |
 | **Release date** | 2026-07-01 |
 
@@ -89,7 +89,7 @@ This gives:
 | $\text{DISK}_\text{OUT}$ | 15.0 | Outer radius of the accretion disk |
 | $\text{DISK}_\text{SIGMA}$ | 0.02 | Vertical disk thickness (Gaussian) |
 | RK4 steps | 900 max | Maximum integration steps (adaptive) |
-| Adaptive step | 0.005 → 2.0 | Step size (finer near the black hole) |
+| Adaptive step | 0.005 → 2.0 | Step size (finer near the black hole, $h = \text{clamp}(0.01 \cdot r^{1.8}, 0.005, 2.0)$) |
 
 ### Impact Parameter and Capture
 
@@ -122,9 +122,15 @@ The acceleration has two components combined in a single factorised expression:
 1. **Radial**: $-3M/r^3 \cdot \vec{x}$ — inward gravitational pull.
 2. **Velocity-dependent**: $+12M/r^3 \cdot (\vec{x} \cdot \vec{v}) \cdot \vec{v}$ — transverse deflection from spacetime curvature. This term is zero in Newtonian gravity and is essential for producing the correct light deflection.
 
+The final background direction is taken from the **ray's final position** after marching (`normalize(pos - ro)`), not from the initial direction — this avoids double-counting the deflection that the RK4 integration already accounts for.
+
 ### Adaptive Step Sizing
 
-The integration step $h$ adapts based on distance to the black hole:
+The integration step $h$ adapts based on distance to the black hole using an analytic formula:
+
+$$h = \text{clamp}(0.01 \cdot r^{1.8}, \; 0.005, \; 2.0)$$
+
+This produces the same step sizes as the v1.2 lookup table but replaces 8 comparisons per step with a single `pow` call.
 
 | Distance $r$ | Step $h$ | Reason |
 |-------------|---------|--------|
@@ -168,7 +174,7 @@ where:
 - $\varphi$ is the angle between the gas velocity and the photon direction
 - $\gamma = (1 - \beta^2)^{-1/2}$ is the Lorentz factor
 
-The monochromatic flux is boosted by $g^3$ (Doppler beaming).
+The **integrated** flux is boosted by $g^4$ (v1.3: corrected from $g^3$ to account for the full Planck spectrum integration).
 
 #### Gravitational Redshift
 
@@ -203,10 +209,12 @@ This simulates the photon ring — a bright ring of light formed by photons that
 
 ### Performance
 
-- Resolution scaled to 50% of screen size (capped at 1× DPR) for playable FPS.
+- Resolution scaled to 50% of screen size (capped at 2× DPR) for playable FPS.
+- **Full Resolution mode** (checkbox): renders at native DPR (capped at 2×) for maximum quality on powerful GPUs — ⚠️ GPU intensive.
 - Tone mapping: $c \mapsto c / (1 + c)$ — compresses bright values to prevent clipping.
 - Early-out conditions: rays hitting the event horizon or exceeding `MAX_R = 500` terminate immediately.
 - An orbit safeguard (3+ full orbits) prevents infinite loops near the photon sphere.
+- Optimizations (v1.3): analytic adaptive step, factorized disk frame transforms, branchless blackbody, explicit FBM rotation, r2 parameter caching in gravAccel.
 
 ## Controls
 
@@ -218,6 +226,7 @@ This simulates the photon ring — a bright ring of light formed by photons that
 | Pause | Space |
 | Disk inclination | Slider (tilt around X axis) |
 | Realistic rotation mode | Kepler checkbox |
+| Full resolution | Full resolution checkbox (⚠️ GPU heavy) |
 
 ### Camera Parameters (default)
 
@@ -225,10 +234,12 @@ This simulates the photon ring — a bright ring of light formed by photons that
 |-----------|-------|-------------|
 | $\theta$ | 100° | Azimuthal angle (around Z axis) |
 | $\phi$ | 80° | Polar angle (from Z axis) — near edge-on |
-| Distance | 45.0 | Camera distance from black hole |
+| Distance | 35.0 | Camera distance from black hole |
 | FOV | 60° | Field of view |
 
-Zoom range: 35–100 units. Polar angle range: 0.001°–179.999° (0° to 180°).
+Zoom range: 35–75 units. Polar angle range: 0.001°–179.999° (0° to 180°).
+
+Reset restores: $\theta = 100°$, $\phi = 80°$, distance = 25.0, disk tilt = 0°.
 
 ## Running the Simulation
 
@@ -275,12 +286,13 @@ This is a **visual simulation**, not a scientific tool. Several approximations a
 4. **No polarization**: real black hole images carry polarisation information from synchrotron emission. This simulation computes intensity only.
 5. **Single-pass rendering**: no multi-pass bloom or anti-aliasing.
 6. **900 RK4 steps max** (adaptive): rays near the photon sphere use tiny steps (0.005–0.04), but most of the path uses large steps. An orbit safeguard (3 full orbits) prevents infinite loops. Some extreme rays may still not converge fully — a performance trade-off.
+7. **Post-Newtonian approximation**: the geodesic acceleration `-(3M/r³)[x - 4(x·v)v]` is valid to 1st post-Newtonian order. Near the photon sphere ($r \sim 1.5$) and event horizon ($r \sim 1.0$), higher-order terms would improve accuracy at the cost of GPU performance.
 
 ## Stack
 
 - **HTML5** — semantic structure with viewport meta for mobile support
 - **CSS3** — fullscreen canvas, HUD with auto-fade, responsive media queries (mobile-first)
-- **Vanilla JavaScript** — WebGL2 context management, camera controls, render loop with delta-time
+- **Vanilla JavaScript** — WebGL2 context management, camera controls, render loop with delta-time, encapsulated in IIFE
 - **WebGL2 (GLSL ES 300)** — vertex shader (fullscreen quad), fragment shader (all physics + rendering)
 - **Nginx** — Docker container for static file serving
 

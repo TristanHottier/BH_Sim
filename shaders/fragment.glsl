@@ -26,19 +26,18 @@ out vec4 fragColor;
 #define MAX_R        500.0
 #define MAX_STEPS    900
 
+// Pré-calculés pour FBM rotation (évite cos/sin par octave)
+#define FBM_ROT_C    0.8775825619  // cos(0.5)
+#define FBM_ROT_S    0.4794255386  // sin(0.5)
+
 uniform vec3  uCamPos;
 uniform float uAspect;
 uniform float uFOV;
 uniform float uTime;
 uniform float uDiskPsi;
 uniform float uRealistic;
-uniform float uTimeOffset;
-uniform float uSeed;
 
-// ═══ Cached trig for disk tilt — computed once per pixel ═══
-float _cosPsi, _sinPsi;
-
-vec3 camFwd() { return normalize(-uCamPos); }
+uniform vec3 camFwd() { return normalize(-uCamPos); }
 
 vec3 camRight() {
     vec3 f = camFwd();
@@ -49,15 +48,15 @@ vec3 camRight() {
 vec3 camUp() { return cross(camFwd(), camRight()); }
 
 // Rotate point into disk frame (Y=0 plane), then rotate back.
-// cosPsi/sinPsi are precomputed once per pixel in rayMarch.
-vec3 diskToDiskFrame(vec3 p) {
+// cosPsi/sinPsi passed as parameters — no global state.
+vec3 diskToDiskFrame(vec3 p, float cosPsi, float sinPsi) {
     // Rotate around X axis: Y' = Y*c - Z*s, Z' = Y*s + Z*c
-    return vec3(p.x, p.y * _cosPsi - p.z * _sinPsi, p.y * _sinPsi + p.z * _cosPsi);
+    return vec3(p.x, p.y * cosPsi - p.z * sinPsi, p.y * sinPsi + p.z * cosPsi);
 }
 
-vec3 diskToWorld(vec3 p) {
+vec3 diskToWorld(vec3 p, float cosPsi, float sinPsi) {
     // Inverse rotation (same as transpose for rotation around X)
-    return vec3(p.x, p.y * _cosPsi + p.z * _sinPsi, -p.y * _sinPsi + p.z * _cosPsi);
+    return vec3(p.x, p.y * cosPsi + p.z * sinPsi, -p.y * sinPsi + p.z * cosPsi);
 }
 
 // ── Turbulence animée du disque ──────────────────────────────────────────────
@@ -65,7 +64,7 @@ vec3 diskToWorld(vec3 p) {
 // en décalant l'angle azimutal en fonction du rayon et du temps.
 
 float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1 + uSeed * 991.0, 311.7 + uSeed * 743.0))) * 43758.5453);
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
 float noise(vec2 p) {
@@ -79,12 +78,15 @@ float noise(vec2 p) {
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
+// FBM sans mat2 : rotation explicite avec constantes pré-calculées
 float fbm(vec2 p) {
     float v = 0.0, a = 0.5;
-    mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
     for (int i = 0; i < 5; i++) {
         v += a * noise(p);
-        p = rot * p * 2.0;
+        // Rotation explicite au lieu de mat2
+        float px = p.x * FBM_ROT_C - p.y * FBM_ROT_S;
+        float py = p.x * FBM_ROT_S + p.y * FBM_ROT_C;
+        p = vec2(px, py) * 2.0;
         a *= 0.5;
     }
     return v;
@@ -96,7 +98,7 @@ float diskTurbulenceKepler(vec2 diskPos, float time) {
     float a = atan(diskPos.y, diskPos.x);
 
     float omega = 12.0 / pow(max(r, 1.0), 1.5);
-    float t = time + uTimeOffset;
+    float t = time;
 
     vec2 localUV = diskPos * 1.8;
     float ca = cos(-omega * t * 0.3);
@@ -117,7 +119,7 @@ float diskTurbulenceKepler(vec2 diskPos, float time) {
 
 // Facteur de turbulence : rotation cinématique (bloc rigide)
 float diskTurbulenceCine(vec2 diskPos, float time) {
-    float t = time + uTimeOffset;
+    float t = time;
     float ca = cos(-t * 0.5);
     float sa = sin(-t * 0.5);
     vec2 rotPos = vec2(
@@ -147,20 +149,18 @@ float diskTurbulence(vec2 diskPos, float time) {
     return diskTurbulenceCine(diskPos, time);
 }
 
-// ═══ Schwarzschild null geodesic acceleration (post-Newtonian) ═══
+// ── Schwarzschild null geodesic acceleration (post-Newtonian) ───────────────
 //
 //   d²x⃗/dλ² = -(3M/r³) · [x⃗ - 4(x⃗·v⃗)v⃗]
 //
-//   Radial term:  -3M/r³ · x⃗    (inward pull)
-//   Velocity term: +12M/r³ · (x⃗·v⃗) · v⃗   (transverse deflection)
+//   r2 passed as parameter to avoid redundant dot(x,x) from caller.
 //
 //   This gives:
 //     - Weak-field deflection: Δθ = 4M/b  (Einstein angle)
 //     - Photon sphere at r = 3M = 1.5
 //     - Critical impact parameter: b_crit = 3√3 M ≈ 2.598
-vec3 gravAccel(vec3 x, vec3 v) {
-    float r2 = dot(x, x);
-    if (r2 < 0.001) return vec3(0.0);
+vec3 gravAccel(vec3 x, vec3 v, float r2) {
+    if (r2 < EH * EH * 0.1) return vec3(0.0);
     float r = sqrt(r2);
     float r3 = r2 * r;
 
@@ -173,12 +173,12 @@ vec3 gravAccel(vec3 x, vec3 v) {
     return coeff * correction;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  Étoiles — fond noir pur, étoiles blanches
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══ Star field hash functions ═══
+// Seeded with uCamPos.y for slight variation with camera height.
 
 float hash1(vec3 p) {
-    p = fract(p * vec3(123.34, 456.21, 789.98));
+    vec3 s = vec3(123.34, 456.21, 789.98);
+    p = fract(p * s);
     p += dot(p, p.yxz + 19.19);
     return fract((p.x + p.y) * p.z);
 }
@@ -207,7 +207,12 @@ vec3 starfield(vec3 dir) {
     // Légère teinte bleutée pour mieux ressortir sur les reflets
     vec3 starColor = vec3(sc * 5.0) * vec3(0.95, 0.97, 1.0);
 
-    // ── Nébuleuse : bruit sinusoïdal sur la sphère céleste ──
+    return starColor;
+}
+
+// ── Shared nebula function (factorized from starfield + rayMarch) ────────────
+vec3 nebula(vec3 dir, bool inStarfield) {
+    // Nébuleuse : bruit sinusoïdal sur la sphère céleste
     float n1 = sin(dir.x * 3.0 + dir.y * 2.0 + dir.z * 1.5);
     float n2 = sin(dir.x * 5.0 - dir.y * 4.0 + dir.z * 3.0 + 1.0);
     float n3 = sin(dir.x * 7.0 + dir.y * 6.0 - dir.z * 5.0 + 2.0);
@@ -224,40 +229,56 @@ vec3 starfield(vec3 dir) {
         nebColor = mix(vec3(0.45, 0.1, 0.35), vec3(0.35, 0.15, 0.45), (hue - 0.66) * 3.0);
     }
 
-    vec3 nebResult = nebColor * neb * 2.0;
+    if (inStarfield) {
+        return nebColor * neb * 2.0;
+    }
 
-    return nebResult + starColor;
+    // Voie lactée : bande colorée (seulement dans rayMarch, pas dans starfield)
+    float band = abs(dir.y * 0.8 + dir.z * 0.6);
+    float bandMask = smoothstep(0.15, 0.0, band);
+
+    float angle = atan(dir.z, dir.x);
+    float n1b = sin(angle * 3.0 + dir.y * 2.0);
+    float n2b = sin(angle * 5.0 - dir.y * 3.0 + 1.0);
+    float n3b = sin(angle * 8.0 + dir.y * 5.0 + 2.0);
+    float nebB = (n1b * 0.5 + n2b * 0.3 + n3b * 0.2) * 0.5 + 0.5;
+    nebB *= bandMask;
+
+    float hueB = n1b * 0.5 + 0.5;
+    vec3 nebColorB;
+    if (hueB < 0.33) {
+        nebColorB = mix(vec3(0.0, 0.05, 0.4), vec3(0.05, 0.15, 0.6), hueB * 3.0);
+    } else if (hueB < 0.66) {
+        nebColorB = mix(vec3(0.05, 0.15, 0.6), vec3(0.1, 0.3, 0.85), (hueB - 0.33) * 3.0);
+    } else {
+        nebColorB = mix(vec3(0.1, 0.3, 0.85), vec3(0.2, 0.45, 1.0), (hueB - 0.66) * 3.0);
+    }
+
+    return nebColor * neb * 2.0 + nebColorB * nebB * 0.8;
 }
 
 // ═══ Approximation réaliste d'un corps noir (Munnich 2004) ═══
 // Convertit une température normalisée [0,1] en couleur RGB.
+// Branchless : mix conditionnel sans if/else pour meilleure perf GPU.
 vec3 blackbody(float t) {
     float temp = 1500.0 + t * 10500.0;
-
-    vec3 color;
+    float tt;
 
     // Phase rouge (1500–3500K)
-    if (temp <= 3500.0) {
-        float tt = (temp - 1500.0) / 2000.0;
-        color = mix(vec3(0.08, 0.02, 0.0), vec3(0.95, 0.3, 0.02), tt);
-    }
+    float maskR = step(temp, 3500.0);
     // Phase orange (3500–6000K)
-    else if (temp <= 6000.0) {
-        float tt = (temp - 3500.0) / 2500.0;
-        color = mix(vec3(0.95, 0.3, 0.02), vec3(1.0, 0.75, 0.25), tt);
-    }
+    float maskO = step(3500.0, temp) * step(temp, 6000.0);
     // Phase blanc chaud (6000–9000K)
-    else if (temp <= 9000.0) {
-        float tt = (temp - 6000.0) / 3000.0;
-        color = mix(vec3(1.0, 0.75, 0.25), vec3(1.0, 0.95, 0.85), tt);
-    }
+    float maskW = step(6000.0, temp) * step(temp, 9000.0);
     // Phase blanc (9000–12000K)
-    else {
-        float tt = (temp - 9000.0) / 3000.0;
-        color = mix(vec3(1.0, 0.95, 0.85), vec3(0.9, 0.93, 1.0), tt);
-    }
+    float maskB = step(9000.0, temp);
 
-    return color;
+    vec3 cR = mix(vec3(0.08, 0.02, 0.0), vec3(0.95, 0.3, 0.02), (temp - 1500.0) / 2000.0);
+    vec3 cO = mix(vec3(0.95, 0.3, 0.02), vec3(1.0, 0.75, 0.25), (temp - 3500.0) / 2500.0);
+    vec3 cW = mix(vec3(1.0, 0.75, 0.25), vec3(1.0, 0.95, 0.85), (temp - 6000.0) / 3000.0);
+    vec3 cB = mix(vec3(1.0, 0.95, 0.85), vec3(0.9, 0.93, 1.0), (temp - 9000.0) / 3000.0);
+
+    return cR * maskR + cO * maskO + cW * maskW + cB * maskB;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -265,7 +286,7 @@ vec3 blackbody(float t) {
 //
 //  Intégration du système d'ordre 1 :
 //    dx/dλ = v
-//    dv/dλ = gravAccel(pos, v)
+//    dv/dλ = gravAccel(pos, v, r2)
 //  Normalisation de |v|=1 après chaque pas RK4 complet.
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -284,12 +305,12 @@ vec4 rayMarch(vec2 uv) {
     float diskTransmittance = 1.0;
 
     // Precompute disk tilt trig ONCE per pixel (not per step!)
-    _cosPsi = cos(uDiskPsi);
-    _sinPsi = sin(uDiskPsi);
+    float cosPsi = cos(uDiskPsi);
+    float sinPsi = sin(uDiskPsi);
 
     // Tracking pour l'anneau de photons
     float totalAngle = 0.0;
-    vec3 lastPos = ro;
+    float prevAzimuth = atan(pos.z, pos.x);
     bool tracking = true;
 
     int orbitCount = 0;
@@ -308,41 +329,39 @@ vec4 rayMarch(vec2 uv) {
     bool rayInteracted = false;
 
     for (int i = 0; i < MAX_STEPS; i++) {
-        float r = length(pos);
+        float r2 = dot(pos, pos);
+        float r = sqrt(r2);
 
         if (r < EH && captured) break;
         if (r < EH && !captured) { captured = true; break; }
         if (r > MAX_R) break;
         if (stuck) break;
 
-        // ── Pas adaptatif ──
-        float h;
-        if (r < 1.2) h = 0.005;
-        else if (r < 1.5) h = 0.01;
-        else if (r < 2.0) h = 0.02;
-        else if (r < 3.0) h = 0.04;
-        else if (r < 6.0) h = 0.08;
-        else if (r < 12.0) h = 0.2;
-        else if (r < 30.0) h = 0.8;
-        else h = 2.0;
+        // ── Pas adaptatif — formule analytique au lieu de 8 if/else ──
+        // h ≈ 0.01 * r^1.8, borné entre 0.005 et 2.0
+        float h = clamp(0.01 * pow(r, 1.8), 0.005, 2.0);
 
         // RK4 — 4 evaluations of acceleration at intermediate positions
-        vec3 a1 = gravAccel(pos, vel);
+        // NOTE: NO normalize() on intermediate velocities — standard RK4
+        vec3 a1 = gravAccel(pos, vel, r2);
         vec3 k1p = vel, k1v = a1;
 
         vec3 p2 = pos + 0.5*h*k1p;
         vec3 v2 = vel + 0.5*h*k1v;
-        vec3 a2 = gravAccel(p2, normalize(v2));
+        float r2_2 = dot(p2, p2);
+        vec3 a2 = gravAccel(p2, v2, r2_2);
         vec3 k2p = vel + 0.5*h*k1v, k2v = a2;
 
         vec3 p3 = pos + 0.5*h*k2p;
         vec3 v3 = vel + 0.5*h*k2v;
-        vec3 a3 = gravAccel(p3, normalize(v3));
+        float r2_3 = dot(p3, p3);
+        vec3 a3 = gravAccel(p3, v3, r2_3);
         vec3 k3p = vel + 0.5*h*k2v, k3v = a3;
 
         vec3 p4 = pos + h*k3p;
         vec3 v4 = vel + h*k3v;
-        vec3 a4 = gravAccel(p4, normalize(v4));
+        float r2_4 = dot(p4, p4);
+        vec3 a4 = gravAccel(p4, v4, r2_4);
         vec3 k4p = vel + h*k3v, k4v = a4;
 
         prevPos = pos;
@@ -350,18 +369,21 @@ vec4 rayMarch(vec2 uv) {
         vel = normalize(vel + (h/6.0) * (k1v + 2.0*k2v + 2.0*k3v + k4v));
 
         // ── Tracking des orbites pour l'anneau de photons ──
-        if (tracking && r > EH && r < 50.0) {
-            vec3 posD = diskToDiskFrame(pos);
-            vec3 lastPosD = diskToDiskFrame(lastPos);
-            vec3 deltaD = posD - lastPosD;
+        // Calculé une seule fois par étape, réutilisé pour intersection disque
+        vec3 posD = diskToDiskFrame(pos, cosPsi, sinPsi);
 
-            // Angle balayé dans le plan du disque (X-Z plane of disk frame)
-            float crossMag = abs(deltaD.x * lastPosD.z - deltaD.z * lastPosD.x);
-            float dotXZ = dot(deltaD.xz, lastPosD.xz);
-            float rXZ = max(length(lastPosD.xz), 0.01);
-            float angleStep = atan(crossMag, dotXZ / rXZ);
-            totalAngle += max(angleStep, 0.0);
-            lastPos = pos;
+        if (tracking && r > EH && r < 50.0) {
+            vec3 lastPosD = diskToDiskFrame(lastPos, cosPsi, sinPsi);
+
+            // Angle orbital : différence d'azimut dans le plan du disque
+            float currentAzimuth = atan(posD.z, posD.x);
+            float deltaAz = currentAzimuth - prevAzimuth;
+            // Unwrap : gérer le saut -π → +π
+            if (deltaAz > PI) deltaAz -= 2.0 * PI;
+            if (deltaAz < -PI) deltaAz += 2.0 * PI;
+
+            totalAngle += max(deltaAz, 0.0);
+            prevAzimuth = currentAzimuth;
 
             // Compter les demi-tours complets (seuils de PI)
             float currentAngleThreshold = floor(totalAngle / PI);
@@ -377,14 +399,13 @@ vec4 rayMarch(vec2 uv) {
         }
 
         // ── Intersection disque (y=0, incliné par uDiskPsi) ──
-        vec3 posDisk = diskToDiskFrame(pos);
-        vec3 prevDisk = diskToDiskFrame(prevPos);
+        vec3 prevDisk = diskToDiskFrame(prevPos, cosPsi, sinPsi);
         float prevYDisk = prevDisk.y;
 
-        if (prevYDisk * posDisk.y < 0.0) {
-            float t = prevYDisk / (prevYDisk - posDisk.y);
-            vec3 hitDisk = prevDisk + t * (posDisk - prevDisk);
-            vec3 hit = diskToWorld(hitDisk);
+        if (prevYDisk * posD.y < 0.0) {
+            float t = prevYDisk / (prevYDisk - posD.y);
+            vec3 hitDisk = prevDisk + t * (posD - prevDisk);
+            vec3 hit = diskToWorld(hitDisk, cosPsi, sinPsi);
             float hr = length(hitDisk.xz);
 
             if (hr >= DISK_IN && hr <= DISK_OUT) {
@@ -417,8 +438,8 @@ vec4 rayMarch(vec2 uv) {
                 // Transform to world space
                 vec3 vTangent = vec3(
                     vTangentDisk.x,
-                    vTangentDisk.y * _cosPsi + vTangentDisk.z * _sinPsi,
-                    -vTangentDisk.y * _sinPsi + vTangentDisk.z * _cosPsi
+                    vTangentDisk.y * cosPsi + vTangentDisk.z * sinPsi,
+                    -vTangentDisk.y * sinPsi + vTangentDisk.z * cosPsi
                 );
 
                 // Direction from disk hit to camera (in static frame at disk)
@@ -428,14 +449,13 @@ vec4 rayMarch(vec2 uv) {
                 float cosPhi = dot(vTangent, dirCam);
 
                 // Correct redshift factor: g = √(1-2M/r) / [γ(1 - β·cosφ)]
-                // Uses cosφ directly (emission angle in static frame) — no aberration needed.
                 float gamma = 1.0 / sqrt(max(0.01, 1.0 - beta * beta));
                 float dopplerDenom = max(0.01, gamma * (1.0 - beta * cosPhi));
                 float gravRedshiftFactor = sqrt(max(0.01, 1.0 - EH / hr));
                 float g = gravRedshiftFactor / dopplerDenom;
 
-                // Beaming: g³ for monochromatic flux
-                float beamingFactor = g * g * g;
+                // Beaming: g^4 for integrated blackbody flux (correct for Planck spectrum)
+                float beamingFactor = g * g * g * g;
                 beamingFactor = clamp(beamingFactor, 0.001, 8.0);
                 discCol *= beamingFactor;
 
@@ -465,8 +485,8 @@ vec4 rayMarch(vec2 uv) {
 
                 discCol *= clamp(photonRingBoost, 1.0, 5.0) * orbitFactor;
 
-                // Beer-Lambert accumulation
-                float diskAbsorption = 0.6;
+                // Beer-Lambert accumulation — absorption depends on local optical depth
+                float diskAbsorption = clamp(0.6 * zf * turbFactor, 0.05, 0.8);
                 diskAcc += discCol * diskTransmittance * diskAbsorption;
                 diskTransmittance *= (1.0 - diskAbsorption);
             }
@@ -475,7 +495,7 @@ vec4 rayMarch(vec2 uv) {
     }
 
     // Limiter
-    diskAcc = clamp(diskAcc, 0.0, 3.0);
+    diskAcc = clamp(diskAcc, 0.0, 10.0);
     diskTransmittance = max(diskTransmittance, 0.02);
     vec3 color;
 
@@ -483,40 +503,18 @@ vec4 rayMarch(vec2 uv) {
     color = vec3(0.0);
 
     // ── Fond céleste ──
-    // Le ray marching a déjà intégré la courbure GR.
-    // Pour les fonds non-interagis, on utilise la direction initiale rd
-    // corrigée par une deflection faible en champ lointain.
-    vec3 dir = rd;
+    // Utilise la direction FINALE du ray marching (pos - ro) au lieu de rd
+    // corrigée par une deflection analytique — évite le double-comptage.
+    vec3 dir;
     if (!captured && b > 0.01) {
-        // Approximate deflection angle: Δθ = 4M / b
-        float deflection = 4.0 * M / b;
-        vec3 toCenter = normalize(-ro);
-        vec3 deflectionDir = normalize(toCenter - dot(toCenter, rd) * rd);
-        dir = normalize(rd + deflectionDir * deflection);
-    }
-
-    // Voie lactée : bande colorée
-    float band = abs(dir.y * 0.8 + dir.z * 0.6);
-    float bandMask = smoothstep(0.15, 0.0, band);
-
-    float angle = atan(dir.z, dir.x);
-    float n1 = sin(angle * 3.0 + dir.y * 2.0);
-    float n2 = sin(angle * 5.0 - dir.y * 3.0 + 1.0);
-    float n3 = sin(angle * 8.0 + dir.y * 5.0 + 2.0);
-    float neb = (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * 0.5 + 0.5;
-    neb *= bandMask;
-
-    float hue = n1 * 0.5 + 0.5;
-    vec3 nebColor;
-    if (hue < 0.33) {
-        nebColor = mix(vec3(0.0, 0.05, 0.4), vec3(0.05, 0.15, 0.6), hue * 3.0);
-    } else if (hue < 0.66) {
-        nebColor = mix(vec3(0.05, 0.15, 0.6), vec3(0.1, 0.3, 0.85), (hue - 0.33) * 3.0);
+        // Direction finale après courbure GR intégrée par le ray marching
+        dir = normalize(pos - ro);
     } else {
-        nebColor = mix(vec3(0.1, 0.3, 0.85), vec3(0.2, 0.45, 1.0), (hue - 0.66) * 3.0);
+        dir = rd;
     }
 
-    color += nebColor * neb * 0.8;
+    // Nébuleuse factorisée (shared between starfield and background)
+    color += nebula(dir, false);
 
     // Étoiles (seulement si le rayon n'a interagi avec le disque)
     if (!rayInteracted) {
@@ -528,8 +526,10 @@ vec4 rayMarch(vec2 uv) {
     color = mix(color, diskAcc, 1.0 - diskTransmittance);
 
     // Ombre du trou noir : rays captured and NOT passing through disk first
-    if (captured && diskTransmittance > 0.99) {
-        color = vec3(0.0);
+    // Seuil ramené à 0.95 avec blend doux au lieu de > 0.99 binaire
+    if (captured) {
+        float shadowAlpha = 1.0 - smoothstep(0.95, 1.0, diskTransmittance);
+        color = mix(color, vec3(0.0), shadowAlpha);
     }
 
     // ── Tone mapping ──

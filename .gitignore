@@ -1,1 +1,25 @@
 .opencode/
+node_modules/
+*.log
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build / dist
+dist/
+build/
+.cache/
+
+# Screenshots (keep one in repo, ignore others)
+screenshot_*.png

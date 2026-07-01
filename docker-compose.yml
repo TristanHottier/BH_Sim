@@ -3,5 +3,7 @@ version: "3.8"
 services:
   bh-sim:
     build: .
+    container_name: bh-sim
     ports:
       - "8080:80"
+    restart: unless-stopped

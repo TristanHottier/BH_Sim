@@ -5,12 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Black Hole — Gravitational Lensing</title>
+    <meta name="description" content="Real-time WebGL2 simulation of gravitational lensing around a Schwarzschild black hole with accretion disk, Doppler beaming, and photon ring.">
+    <meta name="theme-color" content="#000000">
+    <meta property="og:title" content="Black Hole — Gravitational Lensing Simulation">
+    <meta property="og:description" content="Interactive real-time simulation of gravitational lensing around a Schwarzschild black hole, rendered entirely on GPU via WebGL2.">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Black Hole — Gravitational Lensing Simulation</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <canvas id="glCanvas" role="img" aria-label="Real-time simulation of gravitational lensing around a Schwarzschild black hole"></canvas>
-    <div id="hud">
+    <div id="hud" aria-live="polite">
         <div id="title">Schwarzschild Black Hole <span class="subtitle">Gravitational Lensing • d²u/dφ² + u = 3Mu²</span></div>
         <div id="stats">
             <span id="fps">FPS: 0</span>
@@ -18,13 +24,15 @@
             <span id="camInfo">θ: 0.0° φ: 0.0° d: 22.0</span>
         </div>
         <div id="controls">
-            <p><strong>Click / Touch + drag</strong> — θ/φ rotation</p>
-            <p><strong>Scroll / Pinch</strong> — Zoom</p>
-            <p><strong>R</strong> — Reset</p>
-            <p><strong>Space</strong> — Pause</p>
+            <ul>
+                <li><strong>Click / Touch + drag</strong> — θ/φ rotation</li>
+                <li><strong>Scroll / Pinch</strong> — Zoom</li>
+                <li><strong>R</strong> — Reset</li>
+                <li><strong>Space</strong> — Pause</li>
+            </ul>
         </div>
         <div id="sliders">
-            <label>Disk tilt <input type="range" id="sliderPsiDisk" min="-180" max="180" step="1" value="0"> <span id="valPsiDisk">0.0°</span></label>
+            <label>Disk tilt <input type="range" id="sliderPsiDisk" min="-180" max="180" step="1" value="0" aria-valuemin="-180" aria-valuemax="180" aria-valuenow="0"> <span id="valPsiDisk">0.0°</span></label>
             <label><input type="checkbox" id="checkRealistic"> Realistic rotation (Kepler)</label>
             <label><input type="checkbox" id="checkFullRes"> Full resolution <span class="warning">⚠ GPU heavy</span></label>
         </div>

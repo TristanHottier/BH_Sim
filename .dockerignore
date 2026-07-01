@@ -1,0 +1,35 @@
+# opencode config
+.opencode/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Node
+node_modules/
+package-lock.json
+yarn.lock
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build
+dist/
+build/
+.cache/
+
+# Logs
+*.log
+
+# Env
+.env
+.env.*
