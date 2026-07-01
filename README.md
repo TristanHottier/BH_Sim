@@ -42,8 +42,8 @@ This project visualises how gravity bends light near a non-rotating black hole, 
 
 | Field | Value |
 |-------|-------|
-| **Current version** | `v1.1.13` |
-| **Latest commit** | [5ffde52](https://github.com/TristanHottier/BH_Sim/commit/5ffde52) |
+| **Current version** | `v1.1.14` |
+| **Latest commit** | [1516cc8](https://github.com/TristanHottier/BH_Sim/commit/1516cc8) |
 | **Release date** | 2026-07-01 |
 
 Version history is tracked via [Git tags](https://github.com/TristanHottier/BH_Sim/tags) and reflected in the HUD badge during runtime. See [`version.json`](version.json) for machine-readable metadata.
