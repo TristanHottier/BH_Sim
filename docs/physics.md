@@ -161,3 +161,4 @@ This shifts the background sky direction toward the black hole center.
 - Luminet, J.P. (1979). *Image of a spherical black hole with spherical accretion disk*. A&A, 75, 228.
 - James et al. (2015). *Dressing a black hole for the big screen*. JOSS, 1(1), 5.
 - Munnich, M. (2004). *Blackbody color approximation*. ShaderX 2.
+$$

@@ -17,16 +17,14 @@ const STATIC_ASSETS = [
     'icon-192.png',
     'icon-512.png',
     'manifest.json',
-    'screenshot.png',
+    'screenshot.png'
 ];
 
 // ── Install ──────────────────────────────────────────────────────────────────
 // Met en cache tous les assets statiques au premier chargement.
 
 self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-    );
+    event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
     // Active le SW immédiatement (pas de wait pour l'ancienne version)
     self.skipWaiting();
 });
@@ -36,13 +34,11 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((names) =>
-            Promise.all(
-                names
-                    .filter((name) => name !== CACHE_NAME)
-                    .map((name) => caches.delete(name))
+        caches
+            .keys()
+            .then((names) =>
+                Promise.all(names.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name)))
             )
-        )
     );
     // Prend le contrôle des pages ouvertes immédiatement
     self.clients.claim();

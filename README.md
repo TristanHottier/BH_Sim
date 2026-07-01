@@ -27,11 +27,11 @@ redshift, and procedural turbulence.
 
 ## Version
 
-| Field               | Value                                                                |
-| ------------------- | -------------------------------------------------------------------- |
-| **Current version** | `v1.5.3`                                                             |
-| **Latest commit**   | pending                                                              |
-| **Release date**    | 2026-07-01                                                           |
+| Field               | Value      |
+| ------------------- | ---------- |
+| **Current version** | `v1.5.3`   |
+| **Latest commit**   | pending    |
+| **Release date**    | 2026-07-01 |
 
 Version history is tracked via [Git tags](https://github.com/TristanHottier/BH_Sim/tags) and reflected in the HUD badge
 during runtime. See [`version.json`](version.json) for machine-readable metadata.
@@ -216,7 +216,7 @@ reference.
 5. **No polarization**: real black hole images carry polarisation information from synchrotron emission.
 6. **Single-pass rendering**: no multi-pass bloom or anti-aliasing.
 7. **900 RK4 steps max** (adaptive): most rays terminate at 50–200 steps via early-out conditions. An orbit safeguard
-    (>5 orbits) prevents infinite loops.
+   (>5 orbits) prevents infinite loops.
 
 ## Stack
 

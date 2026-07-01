@@ -12,11 +12,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [1.5.3] — 2026-07-01
 
 ### Fixed
-- **Version sync**: synchronized version across `version.json`, `README.md`, `package.json`, and CHANGELOG (all now `1.5.3`).
+
+- **Version sync**: synchronized version across `version.json`, `README.md`, `package.json`, and CHANGELOG (all now
+  `1.5.3`).
 - **CHANGELOG**: converted `[Unreleased]` section to `[1.5.3]`, added fresh `[Unreleased]` header.
 - **version.json**: updated `commit` to `HEAD` for CI version check to resolve correctly.
 
 ### Added
+
 - **Git tags**: `v1.5.0`, `v1.5.1`, `v1.5.2` tags created and pushed to remote (were missing from repo).
 
 ---
@@ -34,7 +37,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed — Shader
 
-- **MAX_STEPS**: confirmed at 900 (CHANGELOG v1.4.0 claimed "reduced to 300" but the shader was never changed; docs now correctly say 900).
+- **MAX_STEPS**: confirmed at 900 (CHANGELOG v1.4.0 claimed "reduced to 300" but the shader was never changed; docs now
+  correctly say 900).
 - **SOFTEN_R2**: commented out as dead code (horizon capture at `r < EH` always fires first).
 - **nebulaColor()**: vectorized `if/else` → `step`/`mix` (consistent with `blackbody()` pattern).
 
