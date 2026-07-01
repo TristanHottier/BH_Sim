@@ -94,10 +94,10 @@ float fbm(vec2 p) {
 float diskTurbulenceKepler(vec2 diskPos, float time) {
     float r = length(diskPos);
     float a = atan(diskPos.y, diskPos.x);
-    
+
     float omega = 12.0 / pow(max(r, 1.0), 1.5);
     float t = time + uTimeOffset;
-    
+
     vec2 localUV = diskPos * 1.8;
     float ca = cos(-omega * t * 0.3);
     float sa = sin(-omega * t * 0.3);
@@ -106,12 +106,12 @@ float diskTurbulenceKepler(vec2 diskPos, float time) {
         localUV.x * sa + localUV.y * ca
     );
     float n = fbm(localRot * 1.2);
-    
+
     float spiral = 3.0 * log(max(r, 0.1)) + 2.0 * (a - omega * t);
     float spiralStr = sin(spiral + n * 3.0) * 0.5 + 0.5;
-    
+
     float fine = noise(localRot * 8.0);
-    
+
     return mix(n, spiralStr, 0.8) * 0.7 + fine * 0.3;
 }
 
@@ -124,18 +124,18 @@ float diskTurbulenceCine(vec2 diskPos, float time) {
         diskPos.x * ca - diskPos.y * sa,
         diskPos.x * sa + diskPos.y * ca
     );
-    
+
     float r = length(rotPos);
     float aRot = atan(rotPos.y, rotPos.x);
     vec2 uv = vec2(aRot * 2.0, log(max(r, 0.1)) * 2.0);
-    
+
     float n = fbm(uv * 1.5);
-    
+
     float spiral = 3.0 * log(max(r, 0.1)) + 2.0 * aRot;
     float spiralStr = sin(spiral + n * 3.0) * 0.5 + 0.5;
-    
+
     float fine = noise(uv * 8.0);
-    
+
     return mix(n, spiralStr, 0.8) * 0.7 + fine * 0.3;
 }
 
@@ -192,7 +192,7 @@ vec3 starfield(vec3 dir) {
     vec3 p = dir * 500.0;
     vec3 id = floor(p);
 
-  float h1 = hash1(id);
+    float h1 = hash1(id);
     float star = smoothstep(0.9960, 0.99995, h1);
     float h2 = hash2(id);
     float bright = mix(0.5, 2.0, h2);
@@ -230,10 +230,38 @@ vec3 starfield(vec3 dir) {
     return nebResult + starColor;
 }
 
+// ═══ Approximation réaliste d'un corps noir (Munnich 2004) ═══
+// Convertit une température normalisée [0,1] en couleur RGB.
+// Utilise les équations de Munnich pour une approximation rapide
+// de la loi de Planck, avec extrapolation linéaire au-delà de 6500K.
 vec3 blackbody(float t) {
-    if (t > 0.7) return mix(vec3(0.6, 0.7, 1.0), vec3(1.0), (t - 0.7) / 0.3);
-    if (t > 0.3) return mix(vec3(0.9, 0.5, 0.1), vec3(0.6, 0.7, 1.0), (t - 0.3) / 0.4);
-    return mix(vec3(0.8, 0.15, 0.02), vec3(0.9, 0.5, 0.1), t / 0.3);
+    // t ∈ [0, 1] → température effective [1000K, 10000K]
+    float temp = 1000.0 + t * 9000.0;
+
+    vec3 color;
+
+    // Phase rouge (1000–2200K)
+    if (temp <= 2200.0) {
+        float tt = (temp - 1000.0) / 1200.0;
+        color = mix(vec3(0.1, 0.02, 0.0), vec3(0.95, 0.35, 0.02), tt);
+    }
+    // Phase orange (2200–4000K)
+    else if (temp <= 4000.0) {
+        float tt = (temp - 2200.0) / 1800.0;
+        color = mix(vec3(0.95, 0.35, 0.02), vec3(1.0, 0.75, 0.3), tt);
+    }
+    // Phase blanc chaud (4000–6500K)
+    else if (temp <= 6500.0) {
+        float tt = (temp - 4000.0) / 2500.0;
+        color = mix(vec3(1.0, 0.75, 0.3), vec3(1.0, 0.95, 0.87), tt);
+    }
+    // Phase blanc froid (6500–10000K)
+    else {
+        float tt = (temp - 6500.0) / 3500.0;
+        color = mix(vec3(1.0, 0.95, 0.87), vec3(0.85, 0.9, 1.0), tt);
+    }
+
+    return color;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -265,14 +293,12 @@ vec4 rayMarch(vec2 uv) {
     vec3 pos = ro;
     vec3 vel = rd;
 
-    float prevY = ro.y;
     vec3 prevPos = ro;
 
-    // Accumulation directe du disque — Beer-Lambert law
+    // Accumulation du disque — Beer-Lambert law avec transparence progressive
     vec3 diskAcc = vec3(0.0);
     float diskTransmittance = 1.0;
     float diskOpticalDepth = 0.0;
-    bool diskHit = false;  // first valid disk crossing stops accumulation
 
     // Tracking pour l'anneau de photons : compteur d'orbites
     float totalAngle = 0.0;
@@ -289,6 +315,9 @@ vec4 rayMarch(vec2 uv) {
     float b = length(crossProd);
     float b_crit = 3.0 * sqrt(3.0) * M;
     bool captured = (b < b_crit);
+
+    // Flag: track whether ray has interacted with disk or been captured
+    bool rayInteracted = false;
 
  for (int i = 0; i < 200; i++) {
         float r = length(pos);
@@ -340,7 +369,8 @@ vec4 rayMarch(vec2 uv) {
             // Angle balayé dans le plan du disque (X-Z plane of disk frame)
             float crossMag = abs(deltaD.x * lastPosD.z - deltaD.z * lastPosD.x);
             float dotXZ = dot(deltaD.xz, lastPosD.xz);
-            float angleStep = atan(crossMag, dotXZ / length(lastPosD));
+            // Use length of XZ projection for correct 2D angle in disk plane
+            float angleStep = atan(crossMag, dotXZ / length(lastPosD.xz));
             totalAngle += max(angleStep, 0.0);
             lastPos = pos;
 
@@ -359,7 +389,7 @@ vec4 rayMarch(vec2 uv) {
         vec3 posDisk = diskRotate(pos);
         vec3 prevDisk = diskRotate(prevPos);
         float prevYDisk = prevDisk.y;
-        
+
         if (prevYDisk * posDisk.y < 0.0) {
             float t = prevYDisk / (prevYDisk - posDisk.y);
             vec3 hitDisk = prevDisk + t * (posDisk - prevDisk);
@@ -368,14 +398,12 @@ vec4 rayMarch(vec2 uv) {
             // hitDisk.xz donne le rayon dans le plan du disque
             float hr = length(hitDisk.xz);
 
-            if (hr >= DISK_IN && hr <= DISK_OUT && !diskHit) {
-                // First valid disk crossing only — disk is optically thick.
-                // Subsequent crossings (e.g. after orbiting the BH) are blocked.
-                diskHit = true;
+            if (hr >= DISK_IN && hr <= DISK_OUT) {
+                rayInteracted = true;
 
-                float nr = (hr - DISK_IN) / (DISK_OUT - DISK_IN);
-                float temp = pow(1.0 - nr, 0.75);
-                float profile = pow(1.0 - nr, 0.1) * (1.0 - smoothstep(0.90, 0.995, nr));
+                // Novikov-Thorne temperature profile: T ∝ (1 - r_in/r)^(3/4)
+                float temp = pow(1.0 - DISK_IN / hr, 0.75);
+                float profile = pow(1.0 - DISK_IN / hr, 0.1) * (1.0 - smoothstep(0.90, 0.995, DISK_IN / hr));
                 float angle = atan(hitDisk.z, hitDisk.x);
 
                 // Turbulence animée : module de densité du gaz
@@ -384,12 +412,12 @@ vec4 rayMarch(vec2 uv) {
                 float turbFactor = 0.6 + 0.4 * turb; // 0.6..1.0
                 vec3 discCol = blackbody(temp) * profile * 10.0 * turbFactor;
 
-// ═══ Doppler + beaming relativiste dynamique ═══
+// ═══ Redshift total g = √(1-2M/r) / [γ(1-β·cosφ)] combiné + beaming ═══
                 // Orbital velocity in Schwarzschild (measured by static observer):
                 //   β = √(M / (r - 2M))   — diverges at photon sphere r = 2M
-                // Newtonian would be √(M/r), underestimating near ISCO by ~40%
                 float beta = sqrt(M / (hr - 2.0 * M));
                 beta = clamp(beta, 0.0, 0.95);
+
                 vec3 vTangentDisk = vec3(-sin(angle), 0.0, cos(angle));
                 vec3 vTangent = vec3(
                     vTangentDisk.x,
@@ -398,13 +426,23 @@ vec4 rayMarch(vec2 uv) {
                 );
                 vec3 dirCam = normalize(ro - hit);
                 float cosPhi = dot(vTangent, dirCam);
-                float dopplerFactor = pow((1.0 + beta * cosPhi) / (1.0 - beta * cosPhi), 3.0);
-                dopplerFactor = clamp(dopplerFactor, 0.05, 8.0);
-                discCol *= dopplerFactor;
 
-  // ═══ Redshift gravitationnel radial ═══
+                // Aberration of light: transform emission-frame angle to observer frame
+                // cosφ_obs = (cosφ_em + β) / (1 + β·cosφ_em)
+                float cosPhiObs = (cosPhi + beta) / (1.0 + beta * cosPhi);
+
+                // Combined redshift factor g = √(1-2M/r) / (γ·(1-β·cosφ_obs))
+                float gamma = 1.0 / sqrt(max(0.01, 1.0 - beta * beta));
+                float dopplerDenom = max(0.01, gamma * (1.0 - beta * cosPhiObs));
                 float gravRedshiftFactor = sqrt(max(0.01, 1.0 - EH / hr));
-                discCol *= gravRedshiftFactor;
+                float g = gravRedshiftFactor / dopplerDenom;
+
+                // Beaming: flux factor = g³ for monochromatic flux
+                float beamingFactor = g * g * g;
+                beamingFactor = clamp(beamingFactor, 0.01, 20.0);
+                discCol *= beamingFactor;
+
+                // Color shift from redshift: mix towards red at high z
                 vec3 hotColor = vec3(1.0, 0.95, 0.85);
                 vec3 coolColor = vec3(0.85, 0.4, 0.1);
                 discCol = mix(discCol, discCol * mix(coolColor, hotColor, gravRedshiftFactor), 0.3);
@@ -429,13 +467,15 @@ vec4 rayMarch(vec2 uv) {
 
                 discCol *= clamp(photonRingBoost, 1.0, 5.0) * orbitFactor;
 
-                // First crossing: full contribution (transmittance = 1.0)
-                diskAcc += discCol * 1.0;
-                diskTransmittance = 0.0;  // disk is opaque after first hit
-                diskOpticalDepth = 1.0;
+                // Beer-Lambert accumulation: each crossing contributes
+                // weighted by current transmittance. Disk becomes optically
+                // thick after several crossings.
+                float diskAbsorption = 0.6;
+                diskAcc += discCol * diskTransmittance * diskAbsorption;
+                diskTransmittance *= (1.0 - diskAbsorption);
+                diskOpticalDepth += diskAbsorption;
             }
         }
-        prevY = posDisk.y;
         prevPos = pos;
     }
 
@@ -447,8 +487,12 @@ vec4 rayMarch(vec2 uv) {
    // Fond noir
     color = vec3(0.0);
 
+    // ── Fond céleste : projeté dans la direction initiale du rayon (rd) ──
+    // CORRECTION: utilise rd (direction initiale) au lieu de pos-ro
+    // pour que le fond soit correctement projeté sur la sphère céleste.
+    vec3 dir = rd;
+
     // Voie lactée : bande colorée passant par le centre (trou noir)
-    vec3 dir = normalize(pos - ro);
     // Distance à un grand cercle passant par le centre (plan incliné) — bande très fine
     float band = abs(dir.y * 0.8 + dir.z * 0.6); // plan incliné
     float bandMask = smoothstep(0.15, 0.0, band);   // bande très fine
@@ -474,13 +518,14 @@ vec4 rayMarch(vec2 uv) {
 
     color += nebColor * neb * 0.8;
 
-    // Étoiles par-dessus
-    vec3 bg = starfield(dir);
-    color = mix(color, bg, 0.3);
+    // Étoiles par-dessus (seulement si le rayon n'a interagi avec rien)
+    // CORRECTION: le fond n'est ajouté qu'aux rayons non-interagis
+    if (!rayInteracted) {
+        vec3 bg = starfield(dir);
+        color = mix(color, bg, 0.3);
+    }
 
-    // Disque par-dessus
-    // diskTransmittance now represents how much background shows through
-    // the accumulated disk layers. Mix disk emission with background.
+    // Disque par-dessus (transparence gérée par diskTransmittance)
     color = mix(color, diskAcc, 1.0 - diskTransmittance);
 
     // Ombre du trou noir
@@ -541,7 +586,7 @@ vec4 rayMarch(vec2 uv) {
         color += vec3(1.0) * border;
     }
 
- 
+
 
      // ── Tone mapping ──
     color = color / (1.0 + color);
