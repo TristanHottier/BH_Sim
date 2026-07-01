@@ -5,7 +5,25 @@ canvas:active { cursor: grabbing; }
 #hud { position: fixed; top: 0; left: 0; right: 0; pointer-events: none; padding: 16px; display: flex; flex-direction: column; gap: 6px; z-index: 10; }
 #title { font-size: 18px; font-weight: 600; color: #fff; text-shadow: 0 0 20px rgba(100,140,255,0.4); letter-spacing: 0.5px; }
 #title .subtitle { display: block; font-size: 10px; font-weight: 400; color: #8899bb; letter-spacing: 1px; margin-top: 2px; text-transform: uppercase; }
-#stats { display: flex; gap: 16px; font-size: 11px; color: #778; font-family: 'Consolas', monospace; flex-wrap: wrap; }
+#stats { display: flex; gap: 16px; font-size: 11px; color: #778; font-family: 'Consolas', monospace; flex-wrap: wrap; align-items: baseline; }
+#stats .version-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    background: rgba(85, 119, 170, 0.2);
+    color: #8899bb;
+    border: 1px solid rgba(85, 119, 170, 0.3);
+    white-space: nowrap;
+    cursor: default;
+    transition: background 0.2s, color 0.2s;
+}
+#stats .version-badge:hover {
+    background: rgba(85, 119, 170, 0.35);
+    color: #aabbdd;
+}
 #controls { font-size: 10px; color: #556; line-height: 1.8; margin-top: 2px; }
 #controls p { margin: 0; }
 #controls strong { color: #99a; }
@@ -23,6 +41,7 @@ canvas:active { cursor: grabbing; }
     #title { font-size: 20px; }
     #title .subtitle { font-size: 11px; }
     #stats { font-size: 12px; }
+    #stats .version-badge { font-size: 10px; padding: 2px 8px; }
     #controls { font-size: 11px; }
     #sliders { font-size: 11px; }
     #sliders input[type="range"] { max-width: 180px; }
@@ -36,6 +55,7 @@ canvas:active { cursor: grabbing; }
     #title { font-size: 20px; }
     #title .subtitle { font-size: 11px; }
     #stats { font-size: 12px; }
+    #stats .version-badge { font-size: 10px; padding: 2px 8px; }
     #controls { font-size: 11px; }
     #sliders { font-size: 11px; }
     #sliders input[type="range"] { max-width: 180px; }

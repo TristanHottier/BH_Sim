@@ -8,6 +8,7 @@ This project visualises how gravity bends light near a non-rotating black hole, 
 
 ## Table of Contents
 
+- [Version](#version)
 - [Preview](#preview)
 - [Physics](#physics)
   - [Schwarzschild Metric](#schwarzschild-metric)
@@ -36,6 +37,16 @@ This project visualises how gravity bends light near a non-rotating black hole, 
 - [Known Limitations](#known-limitations)
 - [Stack](#stack)
 - [References](#references)
+
+## Version
+
+| Field | Value |
+|-------|-------|
+| **Current version** | `v1.0.0` |
+| **Latest commit** | [591b6e8](https://github.com/TristanHottier/BH_Sim/commit/591b6e8) |
+| **Release date** | 2026-07-01 |
+
+Version history is tracked via [Git tags](https://github.com/TristanHottier/BH_Sim/tags) and reflected in the HUD badge during runtime. See [`version.json`](version.json) for machine-readable metadata.
 
 ## Preview
 

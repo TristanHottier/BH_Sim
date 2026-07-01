@@ -42,6 +42,39 @@ function resetHudFade() {
 }
 resetHudFade();
 
+// ── Version system ────────────────────────────────────────────────────────────
+// Fetches version.json at startup, updates #version badge.
+// Falls back to "v?.?.?" if fetch fails (offline / file://).
+const VERSION_TAG = document.getElementById('version');
+let appVersion = 'v?.?.?';
+let appCommit  = '?';
+
+function setVersion(v, commit) {
+    appVersion = v;
+    appCommit  = commit;
+    if (VERSION_TAG) {
+        VERSION_TAG.textContent = v;
+        VERSION_TAG.title = commit ? `Commit ${commit}` : '';
+    }
+    console.log(`BH_Sim ${v} (${commit})`);
+}
+
+// Try to load version.json from the server
+fetch('version.json')
+    .then(r => r.ok ? r.json() : Promise.reject('not found'))
+    .then(meta => {
+        const ver = 'v' + meta.version;
+        const short = meta.commit ? meta.commit.slice(0, 7) : '?';
+        setVersion(ver, short);
+    })
+    .catch(() => {
+        // Fallback: try to infer version from the #version element's textContent
+        // which was baked into index.html as a static placeholder
+        if (VERSION_TAG && VERSION_TAG.textContent && VERSION_TAG.textContent.startsWith('v')) {
+            setVersion(VERSION_TAG.textContent, '?');
+        }
+    });
+
 // ── Shader compilation ────────────────────────────────────────────────────────
 function compileShader(src, type) {
     const s = gl.createShader(type);

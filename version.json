@@ -1,0 +1,6 @@
+{
+  "version": "1.0.0",
+  "commit": "591b6e8",
+  "date": "2026-07-01",
+  "description": "Correct split lensed disk arc — orbital angle in disk plane, smooth orbit falloff, Beer-Lambert opacity"
+}
