@@ -1,5 +1,5 @@
 {
-    "name": "bh-sim-pwa",
+    "name": "Black Hole Simulation",
     "short_name": "BH Sim",
     "description": "Schwarzschild Black Hole — Gravitational Lensing",
     "start_url": "/",
@@ -7,6 +7,8 @@
     "display": "standalone",
     "background_color": "#000000",
     "theme_color": "#000000",
+    "categories": ["science", "education"],
+    "orientation": "any",
     "icons": [
         {
             "src": "icon-192.png",

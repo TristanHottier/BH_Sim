@@ -53,6 +53,8 @@ canvas:active {
     flex-direction: column;
     gap: 6px;
     z-index: 10;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 #title {
     font-size: 18px;

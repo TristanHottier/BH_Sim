@@ -6,6 +6,15 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 'use strict';
 
+// ── Service Worker registration (PWA installability on Chrome/Edge) ──────────
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(() => console.log('BH_Sim: Service Worker registered'))
+            .catch((err) => console.warn('BH_Sim: SW registration failed:', err));
+    });
+}
+
 // ── DOM references ──────────────────────────────────────────────────────────
 const canvas = document.getElementById('glCanvas');
 const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });

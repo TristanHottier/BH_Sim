@@ -7,7 +7,7 @@ This project visualises how gravity bends light near a non-rotating black hole, 
 gravitational arcs, and the dark "shadow" at the centre. The accretion disk displays Doppler beaming, gravitational
 redshift, and procedural turbulence.
 
-> **Inspired by**: the first image of M87* by the Event Hole Telescope (2019) and the black hole sequence in
+> **Inspired by**: the first image of M87* by the Event Horizon Telescope (2019) and the black hole sequence in
 > _Interstellar_ (2014), based on physicist Kip Thorne's equations.
 
 ## Table of Contents

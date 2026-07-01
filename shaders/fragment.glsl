@@ -30,7 +30,7 @@ const int   MAX_STEPS    = 900;          // Max integration steps (adaptive step
 // const float SOFTEN_R2  = 0.001;        // DEAD CODE: horizon capture (r < EH) breaks before r² < 0.001
 
 // ── Blackbody normalization ─────────────────────────────────────────────────
-const float TEMP_PEAK    = 0.214;        // Peak of Novikov-Thorne profile at r≈4.08 for DISK_IN=3.0
+const float TEMP_PEAK    = 0.214;        // Empirical peak normalization for visual range (Novikov-Thorne profile at r≈4.08, DISK_IN=3.0)
 const float TEMP_SCALE   = 0.55;         // Normalize peak to 1.0, then scale down for visual range
 
 // ── Disk optical properties ─────────────────────────────────────────────────
@@ -38,7 +38,7 @@ const float BETA_MAX     = 0.95;         // Clamp orbital velocity to avoid divi
 const float BEAM_MIN     = 0.001;        // Minimum beaming factor to avoid zero-flux artifacts
 const float BEAM_MAX     = 8.0;          // Maximum beaming factor to avoid overflow
 const float COLOR_MIX    = 0.3;          // Mix factor for gravitational redshift color shift
-const float DISK_ABS     = 0.6;          // Beer-Lambert absorption per disk intersection
+const float DISK_ABS     = 0.3;          // Beer-Lambert absorption per disk intersection (0.3 = optically thin, 0.6 = too opaque)
 
 // ── Photon ring ─────────────────────────────────────────────────────────────
 const float RING_WIDTH   = 0.35;         // Width of photon ring boost region (in orbit units)
@@ -130,18 +130,18 @@ float diskTurbulenceKepler(vec2 diskPos, float time) {
     float a = atan(diskPos.y, diskPos.x);
 
     float omega = 12.0 / pow(max(r, 1.0), 1.5);
-    float t = time;
+    float omegaT = omega * time;
 
     vec2 localUV = diskPos * 1.8;
-    float ca = cos(-omega * t * 0.3);
-    float sa = sin(-omega * t * 0.3);
+    float ca = cos(-omegaT * 0.3);
+    float sa = sin(-omegaT * 0.3);
     vec2 localRot = vec2(
         localUV.x * ca - localUV.y * sa,
         localUV.x * sa + localUV.y * ca
     );
     float n = fbm(localRot * 1.2);
 
-    float spiral = 3.0 * log(max(r, 0.1)) + 2.0 * (a - omega * t);
+    float spiral = 3.0 * log(max(r, 0.1)) + 2.0 * (a - omegaT);
     float spiralStr = sin(spiral + n * 3.0) * 0.5 + 0.5;
 
     float fine = noise(localRot * 8.0);
@@ -331,7 +331,12 @@ vec4 rayMarch(vec2 uv) {
     vec3 ro = uCamPos;
     float tanFov = tan(uFOV * 0.5);
     vec2 xy = (uv - 0.5) * vec2(uAspect, 1.0) * 2.0 * tanFov;
-    vec3 rd = normalize(camFwd() + camRight() * xy.x + camUp() * xy.y);
+
+    // Memoize camera basis vectors — camFwd() called 3x otherwise
+    vec3 fwd = camFwd();
+    vec3 right = camRight();
+    vec3 up = cross(fwd, right);
+    vec3 rd = normalize(fwd + right * xy.x + up * xy.y);
 
     vec3 pos = ro;
     vec3 vel = rd;
@@ -399,18 +404,18 @@ vec4 rayMarch(vec2 uv) {
         vec3 v2 = vel + 0.5*h*k1Vel;
         vec3 a2 = gravAccel(p2, v2);
         vec3 k2Vel = a2;
-        vec3 k2Pos = vel;
+        vec3 k2Pos = v2;
 
         vec3 p3 = pos + 0.5*h*k2Pos;
         vec3 v3 = vel + 0.5*h*k2Vel;
         vec3 a3 = gravAccel(p3, v3);
         vec3 k3Vel = a3;
-        vec3 k3Pos = vel;
+        vec3 k3Pos = v3;
 
         vec3 p4 = pos + h*k3Pos;
         vec3 v4 = vel + h*k3Vel;
         vec3 a4 = gravAccel(p4, v4);
-        vec3 k4Pos = vel;
+        vec3 k4Pos = v4;
         vec3 k4Vel = a4;
 
         prevPos = pos;
@@ -431,7 +436,7 @@ vec4 rayMarch(vec2 uv) {
             float crossMag = abs(deltaD.x * lastPosD.z - deltaD.z * lastPosD.x);
             float dotXZ = dot(deltaD.xz, lastPosD.xz);
             float rXZ = max(length(lastPosD.xz), 0.01);
-            float angleStep = atan(crossMag, dotXZ) / rXZ;
+            float angleStep = atan(crossMag, dotXZ);
             totalAngle += max(angleStep, 0.0);
             lastPos = pos;
 

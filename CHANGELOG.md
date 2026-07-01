@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **RK4 integrator**: k2Pos/k3Pos/k4Pos now use updated intermediate velocities (v2/v3/v4) instead of raw `vel`, restoring full O(h^5) precision.
+- **Photon ring tracking**: removed incorrect `/ rXZ` division in `angleStep` calculation — orbit counting now accurate.
+- **TEMP_PEAK comment**: clarified as empirical normalization value.
+- **DISK_ABS**: 0.6 → 0.3 to prevent over-opaque Beer-Lambert accumulation.
+
+### Added
+- **Service Worker**: cache-first static assets, network-first version.json, automatic old-cache cleanup.
+- **apple-touch-icon**: added for Safari home screen installability.
+
+### Changed
+- **nginx CSP**: removed `'unsafe-inline'` from `style-src`, added `Strict-Transport-Security` and `Permissions-Policy` headers.
+- **PWA manifest**: renamed to "Black Hole Simulation", added `categories` and `orientation`.
+- **README**: fixed "Event Hole Telescope" → "Event Horizon Telescope".
+- **HUD**: added `backdrop-filter: blur(8px)` for readability over variable backgrounds.
+
+---
+
 ## [1.5.1] — 2026-07-01
 
 ### Fixed — Physics / Documentation
