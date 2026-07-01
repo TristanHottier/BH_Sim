@@ -1,6 +1,6 @@
 {
-  "version": "1.0.7",
-  "commit": "4573973",
+  "version": "1.0.8",
+  "commit": "8844219",
   "date": "2026-07-01",
-  "description": "Fix disk too blue — narrow temp to 1500-12000K, normalization 0.55*peak"
+  "description": "DISK_SIGMA 0.02 — Interstellar-style thin disk"
 }
