@@ -1,6 +1,6 @@
 {
-  "version": "1.3.0",
+  "version": "1.4.0",
   "commit": "HEAD",
   "date": "2026-07-01",
-  "description": "Audit fixes: remove redundant normalize() in RK4, move disk tilt trig to uniforms, fix capture threshold (divide instead of multiply), centralize camera constants, fix slider hoisting bug, increase stuck threshold, optimize FBM rotation matrix, improve adaptive steps, add .gitignore, fix README inconsistencies, improve HUD contrast"
+  "description": "v1.4.0 — Physics & GLSL audit fixes: correct 1PN geodesic accel (add quadratic term, fix factor), fix impact parameter (* vs /), fix RK4 k3p (k3v not k2p), softening gravAccel instead of zero, ACES tone mapping, factorize nebulaColor, diskTurbulence with params, vectorize blackbody, const float PI, remove dead uTimeOffset, remove redundant diskToDiskFrame calls, remove diskAcc clamp, remove resetHudFade from render loop, factorize formatCamInfo, AbortController timeout on version fetch, full reset on R key, passive resize, hoist camInfoEl, single parseFloat, replace innerHTML with createElement"
 }

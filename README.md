@@ -191,7 +191,7 @@ Both use **FBM (Fractional Brownian Motion)** noise with 5 octaves, rotated at e
 
 Rays that complete approximately one orbit around the black hole (total angle between $0.75\pi$ and $1.25\pi$) receive a brightness boost:
 
-$$\text{boost} = 1 + 4 \cdot \left(1 - \frac{|n_\text{orbits} - 1|}{0.25}\right)$$
+$$\text{boost} = 1 + 4 \cdot \left(1 - \frac{|n_\text{orbits} - 1|}{0.35}\right)$$
 
 This simulates the photon ring — a bright ring of light formed by photons that orbit the black hole once before escaping to the camera.
 
@@ -204,9 +204,9 @@ This simulates the photon ring — a bright ring of light formed by photons that
 ### Performance
 
 - Resolution scaled to 50% of screen size (capped at 1× DPR) for playable FPS.
-- Tone mapping: $c \mapsto c / (1 + c)$ — compresses bright values to prevent clipping.
+- Tone mapping: ACES (filmic) — compresses bright values to prevent clipping while preserving midtone contrast.
 - Early-out conditions: rays hitting the event horizon or exceeding `MAX_R = 500` terminate immediately.
-- An orbit safeguard (3+ full orbits) prevents infinite loops near the photon sphere.
+- An orbit safeguard (>5 full orbits) prevents infinite loops near the photon sphere.
 
 ## Controls
 
@@ -275,7 +275,7 @@ This is a **visual simulation**, not a scientific tool. Several approximations a
 3. **No volumetric rendering**: the disk is a thin emissive surface, not a volumetric medium. Self-occultation is approximated via Beer-Lambert accumulation.
 4. **No polarization**: real black hole images carry polarisation information from synchrotron emission. This simulation computes intensity only.
 5. **Single-pass rendering**: no multi-pass bloom or anti-aliasing.
-6. **900 RK4 steps max** (adaptive): rays near the photon sphere use tiny steps (0.005–0.04), but most of the path uses large steps. An orbit safeguard (3 full orbits) prevents infinite loops. Some extreme rays may still not converge fully — a performance trade-off.
+6. **900 RK4 steps max** (adaptive): rays near the photon sphere use tiny steps (0.005–0.04), but most of the path uses large steps. An orbit safeguard (>5 full orbits) prevents infinite loops. Some extreme rays may still not converge fully — a performance trade-off.
 
 ## Stack
 

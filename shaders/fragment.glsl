@@ -17,14 +17,14 @@ out vec4 fragColor;
 //  équatorial de Schwarzschild. Le terme 3Mu² est la correction relativiste.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-#define PI           3.14159265359
-#define M            0.5
-#define EH           1.0          // Event horizon = 2M = 1.0
-#define DISK_IN      3.0          // ISCO = 6M for Schwarzschild
-#define DISK_OUT     15.0
-#define DISK_SIGMA   0.02         // Thin disk, Interstellar-style limb darkening
-#define MAX_R        500.0
-#define MAX_STEPS    900
+const float PI           = 3.14159265359;
+const float M            = 0.5;
+const float EH           = 1.0;          // Event horizon = 2M = 1.0
+const float DISK_IN      = 3.0;          // ISCO = 6M for Schwarzschild
+const float DISK_OUT     = 15.0;
+const float DISK_SIGMA   = 0.02;         // Thin disk, Interstellar-style limb darkening
+const float MAX_R        = 500.0;
+const int MAX_STEPS      = 900;
 
 uniform vec3  uCamPos;
 uniform float uAspect;
@@ -34,7 +34,6 @@ uniform float uDiskPsi;
 uniform float uDiskCos;          // cos(diskPsi) — precomputed in JS
 uniform float uDiskSin;          // sin(diskPsi) — precomputed in JS
 uniform float uRealistic;
-uniform float uTimeOffset;
 uniform float uSeed;
 
 // ── Rotate point into disk frame (Y=0 plane), then rotate back ───────────────
@@ -88,7 +87,7 @@ float diskTurbulenceKepler(vec2 diskPos, float time) {
     float a = atan(diskPos.y, diskPos.x);
 
     float omega = 12.0 / pow(max(r, 1.0), 1.5);
-    float t = time + uTimeOffset;
+    float t = time;
 
     vec2 localUV = diskPos * 1.8;
     float ca = cos(-omega * t * 0.3);
@@ -109,7 +108,7 @@ float diskTurbulenceKepler(vec2 diskPos, float time) {
 
 // Facteur de turbulence : rotation cinématique (bloc rigide)
 float diskTurbulenceCine(vec2 diskPos, float time) {
-    float t = time + uTimeOffset;
+    float t = time;
     float ca = cos(-t * 0.5);
     float sa = sin(-t * 0.5);
     vec2 rotPos = vec2(
@@ -131,20 +130,21 @@ float diskTurbulenceCine(vec2 diskPos, float time) {
     return mix(n, spiralStr, 0.8) * 0.7 + fine * 0.3;
 }
 
-// Facteur de turbulence : version choisie
-float diskTurbulence(vec2 diskPos, float time) {
-    if (uRealistic > 0.5) {
+// Facteur de turbulence : version choisie — factorisée (v1.4.0)
+float diskTurbulence(vec2 diskPos, float time, bool realistic) {
+    if (realistic) {
         return diskTurbulenceKepler(diskPos, time);
     }
     return diskTurbulenceCine(diskPos, time);
 }
 
-// ═══ Schwarzschild null geodesic acceleration (post-Newtonian) ═══
+// ═══ Schwarzschild null geodesic acceleration (post-Newtonian 1st order) ═══
 //
-//   d²x⃗/dλ² = -(3M/r³) · [x⃗ - 4(x⃗·v⃗)v⃗]
+//   d²x⃗/dλ² = -(M/r³) · [x⃗ - 4(x⃗·v⃗)v⃗ + 3(x⃗·v⃗)²/r² · x⃗]
 //
-//   Radial term:  -3M/r³ · x⃗    (inward pull)
-//   Velocity term: +12M/r³ · (x⃗·v⃗) · v⃗   (transverse deflection)
+//   Radial term:        -M/r³ · x⃗              (inward pull)
+//   Velocity term:      +4M/r³ · (x⃗·v⃗) · v⃗   (transverse deflection)
+//   Quadratic term:     -3M/r⁵ · (x⃗·v⃗)² · x⃗  (nonlinear correction)
 //
 //   This gives:
 //     - Weak-field deflection: Δθ = 4M/b  (Einstein angle)
@@ -152,17 +152,42 @@ float diskTurbulence(vec2 diskPos, float time) {
 //     - Critical impact parameter: b_crit = 3√3 M ≈ 2.598
 vec3 gravAccel(vec3 x, vec3 v) {
     float r2 = dot(x, x);
-    if (r2 < 0.001) return vec3(0.0);
+    // Softening instead of zero acceleration near center (v1.4.0)
+    if (r2 < 0.001) r2 = 0.001;
     float r = sqrt(r2);
     float r3 = r2 * r;
 
-    float coeff = -3.0 * M / r3;
     float vx = dot(v, x);
 
-    // x⃗ - 4(x⃗·v⃗)v⃗
-    vec3 correction = x - 4.0 * vx * v;
+    // Correct 1PN Schwarzschild null geodesic acceleration:
+    // a = -(M/r³)[x - 4(v·x)v + 3(v·x)²/r² · x]
+    vec3 term1 = x;
+    vec3 term2 = -4.0 * vx * v;
+    vec3 term3 = 3.0 * (vx * vx / r2) * x;
 
-    return coeff * correction;
+    return -(M / r3) * (term1 + term2 + term3);
+}
+
+// ═══ Nébuleuse factorisée (v1.4.0) ═══
+// Calcule la couleur et l'intensité de la nébuleuse à partir d'une direction.
+vec3 nebulaColor(vec3 dir, float baseHueShift) {
+    float n1 = sin(dir.x * 3.0 + dir.y * 2.0 + dir.z * 1.5 + baseHueShift);
+    float n2 = sin(dir.x * 5.0 - dir.y * 4.0 + dir.z * 3.0 + 1.0 + baseHueShift);
+    float n3 = sin(dir.x * 7.0 + dir.y * 6.0 - dir.z * 5.0 + 2.0 + baseHueShift);
+    float neb = (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * 0.5 + 0.5;
+
+    // Teinte bleu-violet-rose
+    float hue = n1 * 0.5 + 0.5;
+    vec3 nebColor;
+    if (hue < 0.33) {
+        nebColor = mix(vec3(0.1, 0.02, 0.35), vec3(0.25, 0.05, 0.45), hue * 3.0);
+    } else if (hue < 0.66) {
+        nebColor = mix(vec3(0.25, 0.05, 0.45), vec3(0.45, 0.1, 0.35), (hue - 0.33) * 3.0);
+    } else {
+        nebColor = mix(vec3(0.45, 0.1, 0.35), vec3(0.35, 0.15, 0.45), (hue - 0.66) * 3.0);
+    }
+
+    return nebColor * neb;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -199,55 +224,37 @@ vec3 starfield(vec3 dir) {
     // Légère teinte bleutée pour mieux ressortir sur les reflets
     vec3 starColor = vec3(sc * 5.0) * vec3(0.95, 0.97, 1.0);
 
-    // ── Nébuleuse : bruit sinusoïdal sur la sphère céleste ──
-    float n1 = sin(dir.x * 3.0 + dir.y * 2.0 + dir.z * 1.5);
-    float n2 = sin(dir.x * 5.0 - dir.y * 4.0 + dir.z * 3.0 + 1.0);
-    float n3 = sin(dir.x * 7.0 + dir.y * 6.0 - dir.z * 5.0 + 2.0);
-    float neb = (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * 0.5 + 0.5;
-
-    // Teinte bleu-violet-rose
-    float hue = n1 * 0.5 + 0.5;
-    vec3 nebColor;
-    if (hue < 0.33) {
-        nebColor = mix(vec3(0.1, 0.02, 0.35), vec3(0.25, 0.05, 0.45), hue * 3.0);
-    } else if (hue < 0.66) {
-        nebColor = mix(vec3(0.25, 0.05, 0.45), vec3(0.45, 0.1, 0.35), (hue - 0.33) * 3.0);
-    } else {
-        nebColor = mix(vec3(0.45, 0.1, 0.35), vec3(0.35, 0.15, 0.45), (hue - 0.66) * 3.0);
-    }
-
-    vec3 nebResult = nebColor * neb * 2.0;
+    // Nébuleuse (factorisée v1.4.0)
+    vec3 nebResult = nebulaColor(dir, 0.0);
 
     return nebResult + starColor;
 }
 
 // ═══ Approximation réaliste d'un corps noir (Munnich 2004) ═══
 // Convertit une température normalisée [0,1] en couleur RGB.
+// Vectorisé avec step/mix au lieu de if/else (v1.4.0)
 vec3 blackbody(float t) {
     float temp = 1500.0 + t * 10500.0;
+    float tt = clamp((temp - 1500.0) / 10500.0, 0.0, 1.0);
 
-    vec3 color;
+    // Phase rouge (1500–3500K) : tt < 0.1905
+    // Phase orange (3500–6000K) : 0.1905 ≤ tt < 0.4286
+    // Phase blanc chaud (6000–9000K) : 0.4286 ≤ tt < 0.7143
+    // Phase blanc (9000–12000K) : tt ≥ 0.7143
+    float s1 = step(tt, 0.190476);
+    float s2 = step(tt, 0.428571);
+    float s3 = step(tt, 0.714286);
 
-    // Phase rouge (1500–3500K)
-    if (temp <= 3500.0) {
-        float tt = (temp - 1500.0) / 2000.0;
-        color = mix(vec3(0.08, 0.02, 0.0), vec3(0.95, 0.3, 0.02), tt);
-    }
-    // Phase orange (3500–6000K)
-    else if (temp <= 6000.0) {
-        float tt = (temp - 3500.0) / 2500.0;
-        color = mix(vec3(0.95, 0.3, 0.02), vec3(1.0, 0.75, 0.25), tt);
-    }
-    // Phase blanc chaud (6000–9000K)
-    else if (temp <= 9000.0) {
-        float tt = (temp - 6000.0) / 3000.0;
-        color = mix(vec3(1.0, 0.75, 0.25), vec3(1.0, 0.95, 0.85), tt);
-    }
-    // Phase blanc (9000–12000K)
-    else {
-        float tt = (temp - 9000.0) / 3000.0;
-        color = mix(vec3(1.0, 0.95, 0.85), vec3(0.9, 0.93, 1.0), tt);
-    }
+    vec3 c1 = vec3(0.08, 0.02, 0.0);
+    vec3 c2 = vec3(0.95, 0.3, 0.02);
+    vec3 c3 = vec3(1.0, 0.75, 0.25);
+    vec3 c4 = vec3(1.0, 0.95, 0.85);
+    vec3 c5 = vec3(0.9, 0.93, 1.0);
+
+    vec3 color = mix(c1, c2, clamp((tt - 0.0) / 0.190476, 0.0, 1.0)) * s1
+               + mix(c2, c3, clamp((tt - 0.190476) / 0.238095, 0.0, 1.0)) * (1.0 - s1) * s2
+               + mix(c3, c4, clamp((tt - 0.428571) / 0.285714, 0.0, 1.0)) * (1.0 - s2) * s3
+               + mix(c4, c5, clamp((tt - 0.714286) / 0.285714, 0.0, 1.0)) * (1.0 - s3);
 
     return color;
 }
@@ -300,15 +307,15 @@ vec4 rayMarch(vec2 uv) {
 
     // Impact parameter — Schwarzschild photon capture threshold
     // Photon sphere at r = 3M, critical impact parameter b_crit = 3√3 M
-    // GR-corrected: b_GR = b / sqrt(1 - 2M/r_cam)
+    // GR-corrected: b_GR = b * sqrt(1 - 2M/r_cam)   (v1.4.0: * au lieu de /)
     // The local impact parameter at finite distance is b_loc = b_∞ / √(1-2M/r_cam)
-    // So the condition b_loc < b_crit becomes: b < b_crit / √(1-2M/r_cam)
+    // So the condition b_loc < b_crit becomes: b < b_crit * √(1-2M/r_cam)
     vec3 crossProd = cross(ro, rd);
     float b = length(crossProd);
     float b_crit = 3.0 * sqrt(3.0) * M;
     float camDist = length(ro);
     float gravFactor = sqrt(max(0.01, 1.0 - EH / camDist));
-    bool captured = (b < b_crit / gravFactor);
+    bool captured = (b < b_crit * gravFactor);  // v1.4.0: * au lieu de /
 
     bool rayInteracted = false;
 
@@ -339,9 +346,7 @@ vec4 rayMarch(vec2 uv) {
         else h = 4.0;                               // Far field — minimal bending
 
         // RK4 — 4 evaluations of acceleration at intermediate positions
-        // NOTE: Intermediate velocity normalizations removed — gravAccel
-        // only uses dot(v, x), so |v| normalization is unnecessary here.
-        // Normalization is applied only after the full RK4 step.
+        // v1.4.0: k3p uses k3v (was k2p — corrupted RK4 fixed)
         vec3 a1 = gravAccel(pos, vel);
         vec3 k1p = vel, k1v = a1;
 
@@ -355,7 +360,7 @@ vec4 rayMarch(vec2 uv) {
         vec3 v3 = vel + 0.5*h*k2v;
         vec3 a3 = gravAccel(p3, v3);
         vec3 k3v = a3;
-        vec3 k3p = vel + 0.5*h*k2p;
+        vec3 k3p = vel + 0.5*h*k3v;   // v1.4.0: k3v au lieu de k2p
 
         vec3 p4 = pos + h*k3p;
         vec3 v4 = vel + h*k3v;
@@ -368,10 +373,13 @@ vec4 rayMarch(vec2 uv) {
         vel = normalize(vel + (h/6.0) * (k1v + 2.0*k2v + 2.0*k3v + k4v));
 
         // ── Tracking des orbites pour l'anneau de photons ──────────────────
-        // Cache disk-frame positions to avoid redundant diskToDiskFrame calls
+        // diskFrame positions computed once per step (v1.4.0: avoid redundant calls)
+        vec3 posDF = diskToDiskFrame(pos);
+        vec3 prevDF = diskToDiskFrame(prevPos);
+
         if (tracking && r < 50.0) {
-            vec3 posD = diskToDiskFrame(pos);
-            vec3 lastPosD = diskToDiskFrame(lastPos);
+            vec3 posD = posDF;
+            vec3 lastPosD = prevDF;
             vec3 deltaD = posD - lastPosD;
 
             // Angle balayé dans le plan du disque (X-Z plane of disk frame)
@@ -392,19 +400,16 @@ vec4 rayMarch(vec2 uv) {
             if (r > 30.0) tracking = false;
 
             // Safeguard : orbites multiples → rayon piégé
-            // Increased from 3 to 5 to avoid cutting legitimate grazing rays
             if (orbitCount > 5) stuck = true;
         }
 
         // ── Intersection disque (y=0, incliné par uDiskPsi) ────────────────
-        // Reuse posD and compute prevDisk once
-        vec3 posDisk = diskToDiskFrame(pos);
-        vec3 prevDisk = diskToDiskFrame(prevPos);
-        float prevYDisk = prevDisk.y;
+        // v1.4.0: réutilise posDF/prevDF calculés plus haut
+        float prevYDisk = prevDF.y;
 
-        if (prevYDisk * posDisk.y < 0.0) {
-            float t = prevYDisk / (prevYDisk - posDisk.y);
-            vec3 hitDisk = prevDisk + t * (posDisk - prevDisk);
+        if (prevYDisk * posDF.y < 0.0) {
+            float t = prevYDisk / (prevYDisk - posDF.y);
+            vec3 hitDisk = prevDF + t * (posDF - prevDF);
             vec3 hit = diskToWorld(hitDisk);
             float hr = length(hitDisk.xz);
 
@@ -421,9 +426,8 @@ vec4 rayMarch(vec2 uv) {
                               * (1.0 - smoothstep(0.90, 0.995, DISK_IN / hr));
                 float angle = atan(hitDisk.z, hitDisk.x);
 
-                // Turbulence
-                vec2 diskUV = hitDisk.xz;
-                float turb = diskTurbulence(diskUV, uTime);
+                // Turbulence — v1.4.0: appel factorisé avec paramètre
+                float turb = diskTurbulence(hitDisk.xz, uTime, uRealistic > 0.5);
                 float turbFactor = 0.6 + 0.4 * turb;
                 vec3 discCol = blackbody(tNorm) * profile * turbFactor * 2.5;
 
@@ -495,8 +499,7 @@ vec4 rayMarch(vec2 uv) {
         prevPos = pos;
     }
 
-    // Limiter
-    diskAcc = clamp(diskAcc, 0.0, 3.0);
+    // v1.4.0: clamp diskAcc removed — tone mapping handles the range
     diskTransmittance = max(diskTransmittance, 0.02);
 
     vec3 color;
@@ -528,17 +531,10 @@ vec4 rayMarch(vec2 uv) {
     float neb = (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * 0.5 + 0.5;
     neb *= bandMask;
 
-    float hue = n1 * 0.5 + 0.5;
-    vec3 nebColor;
-    if (hue < 0.33) {
-        nebColor = mix(vec3(0.0, 0.05, 0.4), vec3(0.05, 0.15, 0.6), hue * 3.0);
-    } else if (hue < 0.66) {
-        nebColor = mix(vec3(0.05, 0.15, 0.6), vec3(0.1, 0.3, 0.85), (hue - 0.33) * 3.0);
-    } else {
-        nebColor = mix(vec3(0.1, 0.3, 0.85), vec3(0.2, 0.45, 1.0), (hue - 0.66) * 3.0);
-    }
+    // Nébuleuse background (factorisée v1.4.0)
+    vec3 nebColor = nebulaColor(dir, 3.0) * neb * 0.8;
 
-    color += nebColor * neb * 0.8;
+    color += nebColor;
 
     // Étoiles (seulement si le rayon n'a interagi avec le disque)
     if (!rayInteracted) {
@@ -554,8 +550,8 @@ vec4 rayMarch(vec2 uv) {
         color = vec3(0.0);
     }
 
-    // ── Tone mapping ──
-    color = color / (1.0 + color);
+    // ── Tone mapping — ACES (v1.4.0: remplace Reinhard c/(1+c)) ──
+    color = (color * (2.51 * color + 0.03)) / (color * (2.43 * color + 0.59) + 0.14);
     color = clamp(color, 0.0, 1.0);
 
     return vec4(color, 1.0);

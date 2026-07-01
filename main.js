@@ -9,7 +9,10 @@ const canvas = document.getElementById('glCanvas');
 const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
 
 if (!gl) {
-    document.body.innerHTML = '<h1 style="color:#f88;text-align:center;margin-top:40vh">WebGL 2 required</h1>';
+    const err = document.createElement('div');
+    err.style.cssText = 'color:#f88;text-align:center;margin-top:40vh;font-family:sans-serif';
+    err.textContent = 'WebGL 2 required';
+    document.body.appendChild(err);
     throw new Error('WebGL2 required');
 }
 
@@ -38,7 +41,7 @@ let frameCount = 0;
 let lastFpsTime = performance.now();
 let currentFps = 0;
 
-// HUD fade
+// ── HUD fade — réactive uniquement sur événements utilisateur (v1.4.0) ──────
 let hudTimeout;
 const hud = document.getElementById('hud');
 function resetHudFade() {
@@ -55,8 +58,9 @@ const valPsiDisk       = document.getElementById('valPsiDisk');
 const checkRealistic   = document.getElementById('checkRealistic');
 const checkFullRes     = document.getElementById('checkFullRes');
 const VERSION_TAG      = document.getElementById('version');
+const camInfoEl        = document.getElementById('camInfo');  // v1.4.0: hoistée
 
-// ── Version system ────────────────────────────────────────────────────────────
+// ── Version system — avec timeout AbortController (v1.4.0) ───────────────────
 let appVersion = 'v?.?.?';
 let appCommit  = '?';
 
@@ -70,7 +74,8 @@ function setVersion(v, commit) {
     console.log(`BH_Sim ${v} (${commit})`);
 }
 
-fetch('version.json')
+// v1.4.0: fetch avec timeout
+fetch('version.json', { signal: AbortSignal.timeout(5000) })
     .then(r => r.ok ? r.json() : Promise.reject('not found'))
     .then(meta => {
         const ver = 'v' + meta.version;
@@ -131,8 +136,10 @@ Promise.all([
     if (loading) loading.classList.add('hidden');
 }).catch(err => {
     console.error('Failed to load shaders:', err);
-    document.body.innerHTML = `<h1 style="color:#f88;text-align:center;margin-top:40vh;font-family:sans-serif">
-        Shader load error.<br>Run via local server.<br><small>${err.message}</small></h1>`;
+    const errDiv = document.createElement('div');
+    errDiv.style.cssText = 'color:#f88;text-align:center;margin-top:40vh;font-family:sans-serif';
+    errDiv.innerHTML = `Shader load error.<br>Run via local server.<br><small>${err.message}</small>`;
+    document.body.appendChild(errDiv);
 });
 
 // ── Fullscreen quad ──────────────────────────────────────────────────────────
@@ -145,7 +152,7 @@ gl.enableVertexAttribArray(0);
 gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 gl.bindVertexArray(null);
 
-// ── Resize ────────────────────────────────────────────────────────────────────
+// ── Resize — passive: true (v1.4.0) ──────────────────────────────────────────
 function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, fullRes ? 2 : 1);
     const scale = fullRes ? 1.0 : 0.5;
@@ -153,14 +160,23 @@ function resize() {
     canvas.height = Math.floor(window.innerHeight * dpr * scale);
     gl.viewport(0, 0, canvas.width, canvas.height);
 }
-window.addEventListener('resize', resize);
+window.addEventListener('resize', resize, { passive: true });
+
+// ── Formatage caméra unique (v1.4.0) ─────────────────────────────────────────
+function formatCamInfo() {
+    const thetaDeg = (camTheta * 180 / Math.PI).toFixed(1);
+    const phiDeg   = (camPhi * 180 / Math.PI).toFixed(1);
+    const psiDeg   = (diskPsi * 180 / Math.PI).toFixed(1);
+    const pause    = paused ? ' ⏸' : '';
+    return `θ: ${thetaDeg}°  φ: ${phiDeg}°  ψd: ${psiDeg}°  d: ${camDist.toFixed(1)}${pause}`;
+}
 
 // ── Render loop ──────────────────────────────────────────────────────────────
 let prog, loc;
 let lastFrameTime = performance.now();
 
 function render(now) {
-    resetHudFade();
+    // v1.4.0: resetHudFade() retiré de render() — appelé uniquement sur événements
 
     // Delta-time animation (frame-rate independent)
     const dt = Math.min((now - lastFrameTime) / 1000, 0.1); // cap at 100ms
@@ -189,7 +205,6 @@ function render(now) {
     gl.uniform1f(loc.uDiskCos, Math.cos(diskPsi));
     gl.uniform1f(loc.uDiskSin, Math.sin(diskPsi));
     gl.uniform1f(loc.uRealistic, realisticMode ? 1.0 : 0.0);
-    gl.uniform1f(loc.uTimeOffset, 0.0);
     gl.uniform1f(loc.uSeed, realisticMode ? 1.0 : 0.0);
     gl.uniform1f(loc.uAspect, canvas.width / canvas.height);
     gl.uniform1f(loc.uFOV, Math.PI / 3);
@@ -197,15 +212,16 @@ function render(now) {
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-    // HUD
+    // HUD — format unique via formatCamInfo() (v1.4.0)
     frameCount++;
     if (now - lastFpsTime >= 250) {
         currentFps = Math.round(frameCount / ((now - lastFpsTime) / 1000));
         frameCount = 0;
         lastFpsTime = now;
         document.getElementById('fps').textContent = `FPS: ${currentFps}`;
-        document.getElementById('camInfo').textContent =
-            `θ: ${(camTheta * 180 / Math.PI).toFixed(1)}°  φ: ${(camPhi * 180 / Math.PI).toFixed(1)}°  ψd: ${(diskPsi * 180 / Math.PI).toFixed(1)}°  d: ${camDist.toFixed(1)}${paused ? ' ⏸' : ''}`;
+        if (camInfoEl) {
+            camInfoEl.textContent = formatCamInfo();
+        }
     }
 
     requestAnimationFrame(render);
@@ -214,7 +230,10 @@ function render(now) {
 function init() {
     prog = createProgram(vertexSrc, fragmentSrc);
     if (!prog) {
-        document.body.innerHTML = '<h1 style="color:#f88;text-align:center;margin-top:40vh">Shader compilation failed</h1>';
+        const errDiv = document.createElement('div');
+        errDiv.style.cssText = 'color:#f88;text-align:center;margin-top:40vh;font-family:sans-serif';
+        errDiv.textContent = 'Shader compilation failed';
+        document.body.appendChild(errDiv);
         return;
     }
     const l = {};
@@ -242,7 +261,7 @@ window.addEventListener('mousemove', (e) => {
 window.addEventListener('mouseup', () => { isDragging = false; });
 canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-   camDist *= 1.0 + e.deltaY * 0.001;
+    camDist *= 1.0 + e.deltaY * 0.001;
     camDist = Math.max(CAM_DIST_MIN, Math.min(CAM_DIST_MAX, camDist));
 }, { passive: false });
 
@@ -259,6 +278,7 @@ canvas.addEventListener('touchstart', (e) => {
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         lastPinchDist = Math.sqrt(dx * dx + dy * dy);
     }
+    resetHudFade();  // v1.4.0: réactive HUD sur touch
 }, { passive: false });
 canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
@@ -267,9 +287,9 @@ canvas.addEventListener('touchmove', (e) => {
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const pinchDist = Math.sqrt(dx * dx + dy * dy);
         const delta = pinchDist - lastPinchDist;
- camDist *= 1.0 - delta * 0.003;
-    camDist = Math.max(CAM_DIST_MIN, Math.min(CAM_DIST_MAX, camDist));
-    lastPinchDist = pinchDist;
+        camDist *= 1.0 - delta * 0.003;
+        camDist = Math.max(CAM_DIST_MIN, Math.min(CAM_DIST_MAX, camDist));
+        lastPinchDist = pinchDist;
     } else if (isDragging && e.touches.length === 1) {
         const dx = e.touches[0].clientX - lastMouse.x;
         const dy = e.touches[0].clientY - lastMouse.y;
@@ -277,35 +297,42 @@ canvas.addEventListener('touchmove', (e) => {
         camPhi = Math.max(0.001, Math.min(Math.PI - 0.001, camPhi + dy * CAM_SENSITIVITY));
         lastMouse.x = e.touches[0].clientX; lastMouse.y = e.touches[0].clientY;
     }
+    resetHudFade();  // v1.4.0: réactive HUD sur touch move
 }, { passive: false });
 canvas.addEventListener('touchend', () => { isDragging = false; });
 
 // ── Keyboard ─────────────────────────────────────────────────────────────────
 window.addEventListener('keydown', (e) => {
+    resetHudFade();  // v1.4.0: réactive HUD sur keydown
+
     if (e.key === 'r' || e.key === 'R') {
+        // v1.4.0: reset complet (inclut realisticMode et fullRes)
         camTheta = CAM_DEFAULT_THETA;
         camPhi   = CAM_DEFAULT_PHI;
         camDist  = CAM_DEFAULT_DIST;
         diskPsi  = 0.0;
+        realisticMode = false;
+        fullRes = false;
         sliderPsiDisk.value = 0;
         valPsiDisk.textContent = '0.0°';
-        updateCamInfo();
+        checkRealistic.checked = false;
+        checkFullRes.checked = false;
+        if (camInfoEl) {
+            camInfoEl.textContent = formatCamInfo();
+        }
     }
     if (e.key === ' ') { e.preventDefault(); paused = !paused; }
 });
 
 // ── Slider ψ disque ──────────────────────────────────────────────────────────
-function updateCamInfo() {
-    if (document.getElementById('camInfo')) {
-        document.getElementById('camInfo').textContent =
-            `θ: ${(camTheta * 180 / Math.PI).toFixed(1)}°  φ: ${(camPhi * 180 / Math.PI).toFixed(1)}°  ψd: ${(diskPsi * 180 / Math.PI).toFixed(1)}°  d: ${camDist.toFixed(1)}${paused ? ' ⏸' : ''}`;
-    }
-}
-
 sliderPsiDisk.addEventListener('input', () => {
-    diskPsi = parseFloat(sliderPsiDisk.value) * Math.PI / 180.0;
-    valPsiDisk.textContent = parseFloat(sliderPsiDisk.value).toFixed(1) + '°';
-    updateCamInfo();
+    // v1.4.0: parseFloat appelé une seule fois
+    const deg = parseFloat(sliderPsiDisk.value);
+    diskPsi = deg * Math.PI / 180.0;
+    valPsiDisk.textContent = deg.toFixed(1) + '°';
+    if (camInfoEl) {
+        camInfoEl.textContent = formatCamInfo();
+    }
 });
 
 checkRealistic.addEventListener('change', () => {
