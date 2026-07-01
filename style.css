@@ -5,7 +5,7 @@ canvas:active { cursor: grabbing; }
 #hud { position: fixed; top: 0; left: 0; right: 0; pointer-events: none; padding: 16px; display: flex; flex-direction: column; gap: 6px; z-index: 10; }
 #title { font-size: 18px; font-weight: 600; color: #fff; text-shadow: 0 0 20px rgba(100,140,255,0.4); letter-spacing: 0.5px; }
 #title .subtitle { display: block; font-size: 10px; font-weight: 400; color: #8899bb; letter-spacing: 1px; margin-top: 2px; text-transform: uppercase; }
-#stats { display: flex; gap: 16px; font-size: 11px; color: #778; font-family: 'Consolas', monospace; flex-wrap: wrap; align-items: baseline; }
+#stats { display: flex; gap: 16px; font-size: 11px; color: #99a; font-family: 'Consolas', monospace; flex-wrap: wrap; align-items: baseline; }
 #stats .version-badge {
     display: inline-block;
     padding: 1px 7px;
@@ -24,10 +24,10 @@ canvas:active { cursor: grabbing; }
     background: rgba(85, 119, 170, 0.35);
     color: #aabbdd;
 }
-#controls { font-size: 10px; color: #556; line-height: 1.8; margin-top: 2px; }
+#controls { font-size: 10px; color: #778; line-height: 1.8; margin-top: 2px; }
 #controls p { margin: 0; }
 #controls strong { color: #99a; }
-#sliders { font-size: 10px; color: #667; font-family: 'Consolas', monospace; line-height: 2; margin-top: 6px; display: flex; flex-direction: column; gap: 2px; pointer-events: auto; }
+#sliders { font-size: 10px; color: #889; font-family: 'Consolas', monospace; line-height: 2; margin-top: 6px; display: flex; flex-direction: column; gap: 2px; pointer-events: auto; }
 #sliders label { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
 #sliders input[type="range"] { flex: 1; max-width: 140px; accent-color: #5577aa; height: 4px; cursor: pointer; }
 #sliders input[type="range"]:focus-visible,
@@ -35,10 +35,24 @@ canvas:active { cursor: grabbing; }
     outline: 2px solid #5577aa;
     outline-offset: 2px;
 }
-#sliders span { min-width: 36px; text-align: right; color: #889; }
+#sliders span { min-width: 36px; text-align: right; color: #99a; }
 #sliders .warning { color: #cc6633; font-size: 9px; }
 #hud.fade { opacity: 0.15; transition: opacity 1.5s ease; }
 #hud:hover, #hud.active { opacity: 1 !important; transition: opacity 0.3s ease; }
+
+/* Respect user's motion preference */
+@media (prefers-reduced-motion: reduce) {
+    #hud.fade {
+        opacity: 1 !important;
+        transition: none;
+    }
+    #loading {
+        transition: none;
+    }
+    #stats .version-badge {
+        transition: none;
+    }
+}
 
 /* Loading overlay */
 #loading {

@@ -1,6 +1,6 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "commit": "HEAD",
   "date": "2026-07-01",
-  "description": "Physics overhaul: fix Doppler aberration sign, remove double-counted post-marching deflection, cache sin/cos for disk tilt, add orbit safeguard, delta-time animation, loading state, pause indicator, corrected documentation"
+  "description": "Audit fixes: remove redundant normalize() in RK4, move disk tilt trig to uniforms, fix capture threshold (divide instead of multiply), centralize camera constants, fix slider hoisting bug, increase stuck threshold, optimize FBM rotation matrix, improve adaptive steps, add .gitignore, fix README inconsistencies, improve HUD contrast"
 }

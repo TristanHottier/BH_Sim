@@ -31,33 +31,23 @@ uniform float uAspect;
 uniform float uFOV;
 uniform float uTime;
 uniform float uDiskPsi;
+uniform float uDiskCos;          // cos(diskPsi) — precomputed in JS
+uniform float uDiskSin;          // sin(diskPsi) — precomputed in JS
 uniform float uRealistic;
 uniform float uTimeOffset;
 uniform float uSeed;
 
-// ═══ Cached trig for disk tilt — computed once per pixel ═══
-float _cosPsi, _sinPsi;
+// ── Rotate point into disk frame (Y=0 plane), then rotate back ───────────────
+// Uses precomputed uDiskCos/uDiskSin uniforms (no sin/cos per pixel)
 
-vec3 camFwd() { return normalize(-uCamPos); }
-
-vec3 camRight() {
-    vec3 f = camFwd();
-    vec3 up = (abs(f.y) < 0.999) ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
-    return normalize(cross(up, f));
-}
-
-vec3 camUp() { return cross(camFwd(), camRight()); }
-
-// Rotate point into disk frame (Y=0 plane), then rotate back.
-// cosPsi/sinPsi are precomputed once per pixel in rayMarch.
 vec3 diskToDiskFrame(vec3 p) {
     // Rotate around X axis: Y' = Y*c - Z*s, Z' = Y*s + Z*c
-    return vec3(p.x, p.y * _cosPsi - p.z * _sinPsi, p.y * _sinPsi + p.z * _cosPsi);
+    return vec3(p.x, p.y * uDiskCos - p.z * uDiskSin, p.y * uDiskSin + p.z * uDiskCos);
 }
 
 vec3 diskToWorld(vec3 p) {
     // Inverse rotation (same as transpose for rotation around X)
-    return vec3(p.x, p.y * _cosPsi + p.z * _sinPsi, -p.y * _sinPsi + p.z * _cosPsi);
+    return vec3(p.x, p.y * uDiskCos + p.z * uDiskSin, -p.y * uDiskSin + p.z * uDiskCos);
 }
 
 // ── Turbulence animée du disque ──────────────────────────────────────────────
@@ -79,9 +69,11 @@ float noise(vec2 p) {
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
+// Precomputed rotation matrix for FBM — computed once per FBM call, not per octave
 float fbm(vec2 p) {
     float v = 0.0, a = 0.5;
-    mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
+    // Rotation by 0.5 rad (precomputed)
+    mat2 rot = mat2(0.8775825619, 0.4794255386, -0.4794255386, 0.8775825619);
     for (int i = 0; i < 5; i++) {
         v += a * noise(p);
         p = rot * p * 2.0;
@@ -261,6 +253,20 @@ vec3 blackbody(float t) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  Camera helpers
+// ═══════════════════════════════════════════════════════════════════════════════
+
+vec3 camFwd() { return normalize(-uCamPos); }
+
+vec3 camRight() {
+    vec3 f = camFwd();
+    vec3 up = (abs(f.y) < 0.999) ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    return normalize(cross(up, f));
+}
+
+vec3 camUp() { return cross(camFwd(), camRight()); }
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  RAY MARCHING 3D avec RK4
 //
 //  Intégration du système d'ordre 1 :
@@ -283,10 +289,6 @@ vec4 rayMarch(vec2 uv) {
     vec3 diskAcc = vec3(0.0);
     float diskTransmittance = 1.0;
 
-    // Precompute disk tilt trig ONCE per pixel (not per step!)
-    _cosPsi = cos(uDiskPsi);
-    _sinPsi = sin(uDiskPsi);
-
     // Tracking pour l'anneau de photons
     float totalAngle = 0.0;
     vec3 lastPos = ro;
@@ -299,23 +301,32 @@ vec4 rayMarch(vec2 uv) {
     // Impact parameter — Schwarzschild photon capture threshold
     // Photon sphere at r = 3M, critical impact parameter b_crit = 3√3 M
     // GR-corrected: b_GR = b / sqrt(1 - 2M/r_cam)
+    // The local impact parameter at finite distance is b_loc = b_∞ / √(1-2M/r_cam)
+    // So the condition b_loc < b_crit becomes: b < b_crit / √(1-2M/r_cam)
     vec3 crossProd = cross(ro, rd);
     float b = length(crossProd);
     float b_crit = 3.0 * sqrt(3.0) * M;
     float camDist = length(ro);
-    bool captured = (b < b_crit * sqrt(max(0.01, 1.0 - EH / camDist)));
+    float gravFactor = sqrt(max(0.01, 1.0 - EH / camDist));
+    bool captured = (b < b_crit / gravFactor);
 
     bool rayInteracted = false;
 
     for (int i = 0; i < MAX_STEPS; i++) {
         float r = length(pos);
 
-        if (r < EH && captured) break;
-        if (r < EH && !captured) { captured = true; break; }
-        if (r > MAX_R) break;
-        if (stuck) break;
+        // ── Early-out conditions ────────────────────────────────────────────
+        if (r < EH) break;                          // Horizon — unified capture
+        if (r > MAX_R) break;                       // Too far
+        if (stuck) break;                            // Orbit safeguard
 
-        // ── Pas adaptatif ──
+        // Early escape: if ray is far and moving monotonically away
+        if (r > 40.0) {
+            float radialVel = dot(pos, vel) / r;
+            if (radialVel > 0.5) break;             // Moving away fast → escape
+        }
+
+        // ── Pas adaptatif ───────────────────────────────────────────────────
         float h;
         if (r < 1.2) h = 0.005;
         else if (r < 1.5) h = 0.01;
@@ -324,33 +335,41 @@ vec4 rayMarch(vec2 uv) {
         else if (r < 6.0) h = 0.08;
         else if (r < 12.0) h = 0.2;
         else if (r < 30.0) h = 0.8;
-        else h = 2.0;
+        else if (r < 60.0) h = 2.0;               // Extended range
+        else h = 4.0;                               // Far field — minimal bending
 
         // RK4 — 4 evaluations of acceleration at intermediate positions
+        // NOTE: Intermediate velocity normalizations removed — gravAccel
+        // only uses dot(v, x), so |v| normalization is unnecessary here.
+        // Normalization is applied only after the full RK4 step.
         vec3 a1 = gravAccel(pos, vel);
         vec3 k1p = vel, k1v = a1;
 
         vec3 p2 = pos + 0.5*h*k1p;
         vec3 v2 = vel + 0.5*h*k1v;
-        vec3 a2 = gravAccel(p2, normalize(v2));
-        vec3 k2p = vel + 0.5*h*k1v, k2v = a2;
+        vec3 a2 = gravAccel(p2, v2);
+        vec3 k2v = a2;
+        vec3 k2p = vel + 0.5*h*k2v;
 
         vec3 p3 = pos + 0.5*h*k2p;
         vec3 v3 = vel + 0.5*h*k2v;
-        vec3 a3 = gravAccel(p3, normalize(v3));
-        vec3 k3p = vel + 0.5*h*k2v, k3v = a3;
+        vec3 a3 = gravAccel(p3, v3);
+        vec3 k3v = a3;
+        vec3 k3p = vel + 0.5*h*k2p;
 
         vec3 p4 = pos + h*k3p;
         vec3 v4 = vel + h*k3v;
-        vec3 a4 = gravAccel(p4, normalize(v4));
-        vec3 k4p = vel + h*k3v, k4v = a4;
+        vec3 a4 = gravAccel(p4, v4);
+        vec3 k4p = vel + h*k3v;
+        vec3 k4v = a4;
 
         prevPos = pos;
         pos = pos + (h/6.0) * (k1p + 2.0*k2p + 2.0*k3p + k4p);
         vel = normalize(vel + (h/6.0) * (k1v + 2.0*k2v + 2.0*k3v + k4v));
 
-        // ── Tracking des orbites pour l'anneau de photons ──
-        if (tracking && r > EH && r < 50.0) {
+        // ── Tracking des orbites pour l'anneau de photons ──────────────────
+        // Cache disk-frame positions to avoid redundant diskToDiskFrame calls
+        if (tracking && r < 50.0) {
             vec3 posD = diskToDiskFrame(pos);
             vec3 lastPosD = diskToDiskFrame(lastPos);
             vec3 deltaD = posD - lastPosD;
@@ -369,14 +388,16 @@ vec4 rayMarch(vec2 uv) {
                 orbitCount = int(currentAngleThreshold);
                 lastAngleThreshold = currentAngleThreshold;
             }
-            // Arrêter le tracking si on est loin ou trop proche
-            if (r > 30.0 || r < EH) tracking = false;
+            // Arrêter le tracking si on est loin
+            if (r > 30.0) tracking = false;
 
             // Safeguard : orbites multiples → rayon piégé
-            if (orbitCount > 3) stuck = true;
+            // Increased from 3 to 5 to avoid cutting legitimate grazing rays
+            if (orbitCount > 5) stuck = true;
         }
 
-        // ── Intersection disque (y=0, incliné par uDiskPsi) ──
+        // ── Intersection disque (y=0, incliné par uDiskPsi) ────────────────
+        // Reuse posD and compute prevDisk once
         vec3 posDisk = diskToDiskFrame(pos);
         vec3 prevDisk = diskToDiskFrame(prevPos);
         float prevYDisk = prevDisk.y;
@@ -417,8 +438,8 @@ vec4 rayMarch(vec2 uv) {
                 // Transform to world space
                 vec3 vTangent = vec3(
                     vTangentDisk.x,
-                    vTangentDisk.y * _cosPsi + vTangentDisk.z * _sinPsi,
-                    -vTangentDisk.y * _sinPsi + vTangentDisk.z * _cosPsi
+                    vTangentDisk.y * uDiskCos + vTangentDisk.z * uDiskSin,
+                    -vTangentDisk.y * uDiskSin + vTangentDisk.z * uDiskCos
                 );
 
                 // Direction from disk hit to camera (in static frame at disk)
@@ -477,6 +498,7 @@ vec4 rayMarch(vec2 uv) {
     // Limiter
     diskAcc = clamp(diskAcc, 0.0, 3.0);
     diskTransmittance = max(diskTransmittance, 0.02);
+
     vec3 color;
 
     // Fond noir

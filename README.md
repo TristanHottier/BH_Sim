@@ -40,7 +40,7 @@ This project visualises how gravity bends light near a non-rotating black hole, 
 
 | Field | Value |
 |-------|-------|
-| **Current version** | `v1.2.0` |
+| **Current version** | `v1.3.0` |
 | **Latest commit** | pending |
 | **Release date** | 2026-07-01 |
 
@@ -229,6 +229,7 @@ This simulates the photon ring — a bright ring of light formed by photons that
 | FOV | 60° | Field of view |
 
 Zoom range: 35–100 units. Polar angle range: 0.001°–179.999° (0° to 180°).
+Reset (R key): restores all defaults.
 
 ## Running the Simulation
 

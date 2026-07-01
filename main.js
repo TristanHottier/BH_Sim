@@ -13,10 +13,18 @@ if (!gl) {
     throw new Error('WebGL2 required');
 }
 
-// ── Camera ────────────────────────────────────────────────────────────────────
-let camTheta = 100.0 * Math.PI / 180.0;
-let camPhi   = 80.0 * Math.PI / 180.0;
-let camDist  = 35.0;
+// ── Camera constants (single source of truth) ─────────────────────────────────
+const CAM_DEFAULT_THETA = 100.0 * Math.PI / 180.0;
+const CAM_DEFAULT_PHI   = 80.0 * Math.PI / 180.0;
+const CAM_DEFAULT_DIST  = 45.0;
+const CAM_DIST_MIN      = 35.0;
+const CAM_DIST_MAX      = 100.0;
+const CAM_SENSITIVITY   = 0.005;
+
+// ── Camera state ─────────────────────────────────────────────────────────────
+let camTheta = CAM_DEFAULT_THETA;
+let camPhi   = CAM_DEFAULT_PHI;
+let camDist  = CAM_DEFAULT_DIST;
 let diskPsi  = 0.0;
 let realisticMode = false;
 let fullRes = false;
@@ -41,8 +49,14 @@ function resetHudFade() {
 }
 resetHudFade();
 
+// ── DOM references (hoisted before any handler) ──────────────────────────────
+const sliderPsiDisk    = document.getElementById('sliderPsiDisk');
+const valPsiDisk       = document.getElementById('valPsiDisk');
+const checkRealistic   = document.getElementById('checkRealistic');
+const checkFullRes     = document.getElementById('checkFullRes');
+const VERSION_TAG      = document.getElementById('version');
+
 // ── Version system ────────────────────────────────────────────────────────────
-const VERSION_TAG = document.getElementById('version');
 let appVersion = 'v?.?.?';
 let appCommit  = '?';
 
@@ -172,8 +186,9 @@ function render(now) {
 
     gl.uniform3fv(loc.uCamPos, camPos);
     gl.uniform1f(loc.uDiskPsi, diskPsi);
+    gl.uniform1f(loc.uDiskCos, Math.cos(diskPsi));
+    gl.uniform1f(loc.uDiskSin, Math.sin(diskPsi));
     gl.uniform1f(loc.uRealistic, realisticMode ? 1.0 : 0.0);
-    // uTimeOffset: always 0 — turbulence uses simTime directly
     gl.uniform1f(loc.uTimeOffset, 0.0);
     gl.uniform1f(loc.uSeed, realisticMode ? 1.0 : 0.0);
     gl.uniform1f(loc.uAspect, canvas.width / canvas.height);
@@ -215,8 +230,6 @@ function init() {
 }
 
 // ── Mouse controls ───────────────────────────────────────────────────────────
-const CAM_SENSITIVITY = 0.005;
-
 canvas.addEventListener('mousedown', (e) => {
     if (e.button === 0) { isDragging = true; lastMouse.x = e.clientX; lastMouse.y = e.clientY; }
 });
@@ -225,13 +238,12 @@ window.addEventListener('mousemove', (e) => {
     camTheta -= (e.clientX - lastMouse.x) * CAM_SENSITIVITY;
     camPhi = Math.max(0.001, Math.min(Math.PI - 0.001, camPhi + (e.clientY - lastMouse.y) * CAM_SENSITIVITY));
     lastMouse.x = e.clientX; lastMouse.y = e.clientY;
-    updateCamInfo();
 });
 window.addEventListener('mouseup', () => { isDragging = false; });
 canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
    camDist *= 1.0 + e.deltaY * 0.001;
-    camDist = Math.max(35.0, Math.min(75.0, camDist));
+    camDist = Math.max(CAM_DIST_MIN, Math.min(CAM_DIST_MAX, camDist));
 }, { passive: false });
 
 // ── Touch controls ───────────────────────────────────────────────────────────
@@ -256,7 +268,7 @@ canvas.addEventListener('touchmove', (e) => {
         const pinchDist = Math.sqrt(dx * dx + dy * dy);
         const delta = pinchDist - lastPinchDist;
  camDist *= 1.0 - delta * 0.003;
-    camDist = Math.max(35.0, Math.min(75.0, camDist));
+    camDist = Math.max(CAM_DIST_MIN, Math.min(CAM_DIST_MAX, camDist));
     lastPinchDist = pinchDist;
     } else if (isDragging && e.touches.length === 1) {
         const dx = e.touches[0].clientX - lastMouse.x;
@@ -264,7 +276,6 @@ canvas.addEventListener('touchmove', (e) => {
         camTheta -= dx * CAM_SENSITIVITY;
         camPhi = Math.max(0.001, Math.min(Math.PI - 0.001, camPhi + dy * CAM_SENSITIVITY));
         lastMouse.x = e.touches[0].clientX; lastMouse.y = e.touches[0].clientY;
-        updateCamInfo();
     }
 }, { passive: false });
 canvas.addEventListener('touchend', () => { isDragging = false; });
@@ -272,10 +283,10 @@ canvas.addEventListener('touchend', () => { isDragging = false; });
 // ── Keyboard ─────────────────────────────────────────────────────────────────
 window.addEventListener('keydown', (e) => {
     if (e.key === 'r' || e.key === 'R') {
-        camTheta = 100.0 * Math.PI / 180.0;
-        camPhi = 80.0 * Math.PI / 180.0;
-        camDist = 25.0;
-        diskPsi = 0.0;
+        camTheta = CAM_DEFAULT_THETA;
+        camPhi   = CAM_DEFAULT_PHI;
+        camDist  = CAM_DEFAULT_DIST;
+        diskPsi  = 0.0;
         sliderPsiDisk.value = 0;
         valPsiDisk.textContent = '0.0°';
         updateCamInfo();
@@ -284,11 +295,6 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ── Slider ψ disque ──────────────────────────────────────────────────────────
-const sliderPsiDisk    = document.getElementById('sliderPsiDisk');
-const valPsiDisk       = document.getElementById('valPsiDisk');
-const checkRealistic   = document.getElementById('checkRealistic');
-const checkFullRes     = document.getElementById('checkFullRes');
-
 function updateCamInfo() {
     if (document.getElementById('camInfo')) {
         document.getElementById('camInfo').textContent =
