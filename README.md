@@ -50,7 +50,7 @@ Key parameters:
 | $M$ | 0.5 | Black hole mass ($r_s = 2M = 1.0$) |
 | $\text{DISK}_\text{IN}$ | 3.0 | ISCO = 6M |
 | $\text{DISK}_\text{OUT}$ | 15.0 | Outer disk radius |
-| MAX_STEPS | 300 | Max RK4 steps (adaptive) |
+| MAX_STEPS | 900 | Max RK4 steps (adaptive) |
 | FOV | 60° | Field of view |
 
 The black hole is modelled by the Schwarzschild metric, the exact solution to Einstein's field equations for a spherical, non-rotating, uncharged body:
@@ -105,7 +105,7 @@ A ray is captured if $b_\text{GR} < b_\text{crit}$.
 This simulation uses standard Schwarzschild physics. Some parameters are adjusted for visual clarity:
 
 - **$\text{DISK}_\text{IN} = 3.0$**: the standard Schwarzschild ISCO ($6M$ where $M = 0.5$). The disk starts at the innermost stable circular orbit.
-- **$\text{DISK}_\text{OUT} = 15.0$**: chosen to keep the disk compact and visually focused, well within the ray marching limit ($MAX_R = 500$).
+- **$\text{DISK}_\text{OUT} = 15.0$**: chosen to keep the disk compact and visually focused, well within the ray marching limit ($MAX_STEPS = 900$).
 - **$\text{DISK}_\text{SIGMA} = 0.02$**: thin disk approximation, similar to the Interstellar rendering. Real accretion disks have $H/r \sim 0.01$–$0.1$, so this is within a realistic range.
 - **$M = 0.5$** ($r_s = 1.0$): arbitrary mass scale. The simulation is dimensionless — only ratios matter.
 
