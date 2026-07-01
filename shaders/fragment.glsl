@@ -259,10 +259,10 @@ vec4 rayMarch(vec2 uv) {
     float prevY = ro.y;
     vec3 prevPos = ro;
 
-    // Accumulation directe du disque
+    // Accumulation directe du disque — Beer-Lambert law
     vec3 diskAcc = vec3(0.0);
-    float diskOpacity = 0.0;
-    bool diskInFront = false;
+    float diskTransmittance = 1.0;
+    float diskOpticalDepth = 0.0;
 
     // Tracking pour l'anneau de photons : compteur d'orbites
     float totalAngle = 0.0;
@@ -322,12 +322,17 @@ vec4 rayMarch(vec2 uv) {
 
 // ── Tracking des orbites pour l'anneau de photons ──
         if (tracking && r > EH && r < 50.0) {
-            vec3 delta = pos - lastPos;
-            // Angle balayé : |delta × lastPos| / |lastPos|²
-            float crossMag = abs(delta.x * lastPos.y - delta.y * lastPos.x);
-            float angleStep = atan(crossMag, dot(delta, lastPos) / length(lastPos));
-            totalAngle += angleStep;
+            vec3 posD = diskRotate(pos);
+            vec3 lastPosD = diskRotate(lastPos);
+            vec3 deltaD = posD - lastPosD;
+
+            // Angle balayé dans le plan du disque (X-Z plane of disk frame)
+            float crossMag = abs(deltaD.x * lastPosD.z - deltaD.z * lastPosD.x);
+            float dotXZ = dot(deltaD.xz, lastPosD.xz);
+            float angleStep = atan(crossMag, dotXZ / length(lastPosD));
+            totalAngle += max(angleStep, 0.0);
             lastPos = pos;
+
             // Compter les demi-tours complets (seuils de PI)
             float currentAngleThreshold = floor(totalAngle / PI);
             if (currentAngleThreshold > lastAngleThreshold) {
@@ -397,17 +402,31 @@ vec4 rayMarch(vec2 uv) {
                 float zf = exp(-hitDisk.y * hitDisk.y / (2.0 * DISK_SIGMA * DISK_SIGMA));
                 discCol *= zf;
 
- // ═══ Anneau de photons + correction double arc ═══
+ // ═══ Anneau de photons + atténuation progressive des images d'ordre élevé ═══
                 float numOrbits = totalAngle / (2.0 * PI);
-                float photonRingBoost = 1.0;
-                if (numOrbits >= 0.75 && numOrbits <= 1.25) {
-                    photonRingBoost = 1.0 + 4.0 * (1.0 - abs(numOrbits - 1.0) / 0.25);
-                }
-                discCol *= clamp(photonRingBoost, 1.0, 5.0) * (numOrbits > 1.0 ? 0.2 : 1.0);
 
-                diskInFront = true;
-                diskOpacity += 0.3;
-                diskAcc += discCol * 0.3;
+                // Photon ring boost: smooth peak around numOrbits = 1.0
+                float photonRingBoost = 1.0;
+                if (numOrbits >= 0.5 && numOrbits <= 1.5) {
+                    float ringWidth = 0.35;
+                    photonRingBoost = 1.0 + 4.0 * smoothstep(ringWidth, 0.0, abs(numOrbits - 1.0));
+                }
+
+                // Smooth falloff for higher-order images (exponential dimming per orbit)
+                // Instead of a hard step at numOrbits=1.0, use a smooth transition
+                float orbitFade = 1.0 - smoothstep(0.5, 2.0, numOrbits) * 0.85;
+                // Also fade for very small numOrbits (direct image, no bending)
+                float directFade = 1.0 - smoothstep(0.0, 0.3, numOrbits) * 0.1;
+                float orbitFactor = orbitFade * directFade;
+
+                discCol *= clamp(photonRingBoost, 1.0, 5.0) * orbitFactor;
+
+                // Each crossing contributes emission weighted by current transmittance
+                // and the disk's own opacity (vertical Gaussian z-profile already applied)
+                float diskAbsorption = 0.5;
+                diskAcc += discCol * diskTransmittance * diskAbsorption;
+                diskTransmittance *= (1.0 - diskAbsorption);
+                diskOpticalDepth += diskAbsorption;
             }
         }
         prevY = posDisk.y;
@@ -415,8 +434,8 @@ vec4 rayMarch(vec2 uv) {
     }
 
     // Limiter
-    diskAcc = clamp(diskAcc, 0.0, 2.0);
-    diskOpacity = min(diskOpacity, 0.98);
+    diskAcc = clamp(diskAcc, 0.0, 3.0);
+    diskTransmittance = max(diskTransmittance, 0.02);
    vec3 color;
 
    // Fond noir
@@ -454,10 +473,13 @@ vec4 rayMarch(vec2 uv) {
     color = mix(color, bg, 0.3);
 
     // Disque par-dessus
-    color = mix(color, diskAcc, diskOpacity);
+    // diskTransmittance now represents how much background shows through
+    // the accumulated disk layers. Mix disk emission with background.
+    color = mix(color, diskAcc, 1.0 - diskTransmittance);
 
     // Ombre du trou noir
-    if (captured && !diskInFront) {
+    // Shadow: captured rays that didn't hit any disk region
+    if (captured && diskOpticalDepth < 0.01) {
         color = vec3(0.0);
     }
 
