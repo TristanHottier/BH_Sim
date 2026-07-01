@@ -1,6 +1,6 @@
 {
-  "version": "1.0.1",
-  "commit": "a81e312",
+  "version": "1.0.2",
+  "commit": "aef42ad",
   "date": "2026-07-01",
-  "description": "4 physics corrections — ISCO disk start, single gravitational redshift, GR orbital beta, shadow border screen-space fix"
+  "description": "Physics audit v2 — Planck blackbody, combined g-factor, aberration, transparent disk, correct sky projection"
 }
