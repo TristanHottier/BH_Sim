@@ -24,7 +24,7 @@ out vec4 fragColor;
 #define EH           1.0
 #define DISK_IN      3.0   // ISCO = 6M for Schwarzschild (M=0.5 → 3.0)
 #define DISK_OUT     25.0
-#define DISK_SIGMA   2.0
+#define DISK_SIGMA   0.02   // Thin disk, Interstellar-style limb darkening
 #define MAX_R        500.0
 #define GM           0.5
 #define TURB_N       6.0
@@ -459,22 +459,7 @@ vec4 rayMarch(vec2 uv) {
                 vec3 coolColor = vec3(0.85, 0.4, 0.1);
                 discCol = mix(discCol, discCol * mix(coolColor, hotColor, gravRedshiftFactor), 0.3);
 
-                // Vertical profile: Gaussian in disk frame.
-                // Since the ray crosses exactly at y=0, zf=1 always.
-                // Instead, use DISK_SIGMA to model the disk's effective
-                // optical depth as seen from the camera. A larger sigma
-                // means a thicker disk → more self-occlusion and limb darkening.
-                // Approximate path length through the disk:
-                //   L ≈ sigma / |cos(inclination_angle)|
-                // The inclination angle is the angle between the ray direction
-                // and the disk normal. We approximate it using the ray's
-                // direction relative to the disk normal at the crossing point.
-                vec3 diskNormalWorld = vec3(0.0, cos(uDiskPsi), sin(uDiskPsi));
-                vec3 rayDirWorld = normalize(ro - hit);
-                float cosInclination = abs(dot(rayDirWorld, diskNormalWorld));
-                // Optical depth increases as the ray grazes the disk
-                float opticalDepth = 1.0 / (1.0 + cosInclination * DISK_SIGMA);
-                float zf = clamp(opticalDepth, 0.05, 1.0);
+                float zf = exp(-hitDisk.y * hitDisk.y / (2.0 * DISK_SIGMA * DISK_SIGMA));
                 discCol *= zf;
 
  // ═══ Anneau de photons + atténuation progressive des images d'ordre élevé ═══

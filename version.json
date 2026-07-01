@@ -1,6 +1,6 @@
 {
-  "version": "1.1.2",
-  "commit": "05ec14f",
+  "version": "1.1.0",
+  "commit": "e2bf30f",
   "date": "2026-07-01",
-  "description": "DISK_SIGMA now has visual effect — inclination-based optical depth"
+  "description": "Shadow border aligned — exact Schwarzschild shadow angle sin(α) = (b_crit/r)*sqrt(1-2M/r)"
 }
