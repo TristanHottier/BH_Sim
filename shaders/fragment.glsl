@@ -235,30 +235,35 @@ vec3 starfield(vec3 dir) {
 // Utilise les équations de Munnich pour une approximation rapide
 // de la loi de Planck, avec extrapolation linéaire au-delà de 6500K.
 vec3 blackbody(float t) {
-    // t ∈ [0, 1] → température effective [1000K, 10000K]
-    float temp = 1000.0 + t * 9000.0;
+    // t ∈ [0, 1] → température effective [800K, 25000K]
+    float temp = 800.0 + t * 24200.0;
 
     vec3 color;
 
-    // Phase rouge (1000–2200K)
-    if (temp <= 2200.0) {
-        float tt = (temp - 1000.0) / 1200.0;
-        color = mix(vec3(0.1, 0.02, 0.0), vec3(0.95, 0.35, 0.02), tt);
+    // Phase rouge profond (800–2500K)
+    if (temp <= 2500.0) {
+        float tt = (temp - 800.0) / 1700.0;
+        color = mix(vec3(0.05, 0.01, 0.0), vec3(0.9, 0.25, 0.01), tt);
     }
-    // Phase orange (2200–4000K)
-    else if (temp <= 4000.0) {
-        float tt = (temp - 2200.0) / 1800.0;
-        color = mix(vec3(0.95, 0.35, 0.02), vec3(1.0, 0.75, 0.3), tt);
+    // Phase orange (2500–5000K)
+    else if (temp <= 5000.0) {
+        float tt = (temp - 2500.0) / 2500.0;
+        color = mix(vec3(0.9, 0.25, 0.01), vec3(1.0, 0.7, 0.2), tt);
     }
-    // Phase blanc chaud (4000–6500K)
-    else if (temp <= 6500.0) {
-        float tt = (temp - 4000.0) / 2500.0;
-        color = mix(vec3(1.0, 0.75, 0.3), vec3(1.0, 0.95, 0.87), tt);
+    // Phase blanc chaud (5000–8000K)
+    else if (temp <= 8000.0) {
+        float tt = (temp - 5000.0) / 3000.0;
+        color = mix(vec3(1.0, 0.7, 0.2), vec3(1.0, 0.92, 0.8), tt);
     }
-    // Phase blanc froid (6500–10000K)
+    // Phase blanc (8000–15000K)
+    else if (temp <= 15000.0) {
+        float tt = (temp - 8000.0) / 7000.0;
+        color = mix(vec3(1.0, 0.92, 0.8), vec3(0.95, 0.95, 1.0), tt);
+    }
+    // Phase bleu (15000–25000K)
     else {
-        float tt = (temp - 6500.0) / 3500.0;
-        color = mix(vec3(1.0, 0.95, 0.87), vec3(0.85, 0.9, 1.0), tt);
+        float tt = (temp - 15000.0) / 10000.0;
+        color = mix(vec3(0.95, 0.95, 1.0), vec3(0.6, 0.75, 1.0), tt);
     }
 
     return color;
@@ -406,7 +411,10 @@ vec4 rayMarch(vec2 uv) {
                 // Peaks at r ≈ 1.36 * r_in, then decreases as r^(-3/4)
                 // Normalized to [0, 1] over [DISK_IN, DISK_OUT]
                 float nr = pow(hr, -0.75) * pow(1.0 - sqrt(DISK_IN / hr), 0.25);
-                float t = clamp(nr / 0.162, 0.0, 1.0);
+                // Normalize so that t spans [0, 1] across the disk:
+                // nr peaks ~0.162 at r~4.1, drops to ~0.089 at r=25
+                // Use a factor that gives good dynamic range
+                float t = clamp(nr / 0.09, 0.0, 1.0);
                 float temp = t;
 
                 // Emissivity profile: slight inner brightening, outer drop-off
