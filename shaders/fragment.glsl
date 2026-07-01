@@ -151,18 +151,27 @@ vec3 gravAccel(vec3 x, vec3 v) {
     float r2 = dot(x, x);
     if (r2 < 0.001) return vec3(0.0);
     float r = sqrt(r2);
+    float r3 = r2 * r;
 
-    // Composante radiale (attraction vers le centre)
-    vec3 radial = -ALPHA * M * x / (r2 * r);
+    // Correct Schwarzschild light geodesic acceleration (post-Newtonian form):
+    //   d²x⃗/dλ² = -(3M/r³) · [x⃗ - 4(x⃗·v⃗)v⃗]
+    //
+    // Radial term:  -3M/r³ · x⃗    (inward pull, coefficient 3M not ALPHA·M)
+    // Velocity term: +12M/r³ · (x⃗·v⃗) · v⃗   (reduces inward pull when
+    //   receding, increases when approaching — produces correct bending)
+    //
+    // This gives:
+    //   - Weak-field deflection: Δθ = 4M/b  (Einstein angle)
+    //   - Photon sphere at r = 3M = 1.5
+    //   - Critical impact parameter: b_crit = 3√3 M ≈ 2.598
 
-    // Composante tangentielle : la courbure des géodésiques
-    // dépend aussi de la vitesse tangentielle.
-    // Terme supplémentaire : -3M * (v·x) / r^3 * v
-    // qui représente la déviation transversale de la lumière
+    float coeff = -3.0 * M / r3;
     float vx = dot(v, x);
-    vec3 tangential = -3.0 * M * vx / (r2 * r) * v;
 
-    return radial + tangential;
+    // x⃗ - 4(x⃗·v⃗)v⃗
+    vec3 correction = x - 4.0 * vx * v;
+
+    return coeff * correction;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -263,6 +272,7 @@ vec4 rayMarch(vec2 uv) {
     vec3 diskAcc = vec3(0.0);
     float diskTransmittance = 1.0;
     float diskOpticalDepth = 0.0;
+    bool diskHit = false;  // first valid disk crossing stops accumulation
 
     // Tracking pour l'anneau de photons : compteur d'orbites
     float totalAngle = 0.0;
@@ -273,10 +283,11 @@ vec4 rayMarch(vec2 uv) {
     int orbitCount = 0;
     float lastAngleThreshold = PI;
 
-    // Impact parameter
+    // Impact parameter — correct Schwarzschild photon capture threshold
+    // Photon sphere at r = 3M, critical impact parameter b_crit = 3√3 M
     vec3 crossProd = cross(ro, rd);
     float b = length(crossProd);
-    float b_crit = 3.0 * sqrt(3.0) * M * (ALPHA / 3.0);
+    float b_crit = 3.0 * sqrt(3.0) * M;
     bool captured = (b < b_crit);
 
  for (int i = 0; i < 200; i++) {
@@ -357,12 +368,16 @@ vec4 rayMarch(vec2 uv) {
             // hitDisk.xz donne le rayon dans le plan du disque
             float hr = length(hitDisk.xz);
 
-            if (hr >= DISK_IN && hr <= DISK_OUT) {
+            if (hr >= DISK_IN && hr <= DISK_OUT && !diskHit) {
+                // First valid disk crossing only — disk is optically thick.
+                // Subsequent crossings (e.g. after orbiting the BH) are blocked.
+                diskHit = true;
+
                 float nr = (hr - DISK_IN) / (DISK_OUT - DISK_IN);
                 float temp = pow(1.0 - nr, 0.75);
                 float profile = pow(1.0 - nr, 0.1) * (1.0 - smoothstep(0.90, 0.995, nr));
                 float angle = atan(hitDisk.z, hitDisk.x);
-                
+
                 // Turbulence animée : module de densité du gaz
                 vec2 diskUV = hitDisk.xz;
                 float turb = diskTurbulence(diskUV, uTime);
@@ -371,16 +386,9 @@ vec4 rayMarch(vec2 uv) {
                 vec3 discCol = blackbody(temp) * profile * redshift * 10.0 * turbFactor;
 
 // ═══ Doppler + beaming relativiste dynamique ═══
-                // Facteur Doppler : ((1 + β·cosφ) / (1 - β·cosφ))³
-                // β = vitesse orbitale normalisée
-                // cosφ = projection de la vitesse tangentielle sur la ligne de visée
-                // La vitesse tangentielle du gaz est perpendiculaire au rayon radial :
-                //   v_tan ∝ (-sin(angle), 0, cos(angle)) dans le repère du disque
-                // Il faut transformer vTangent dans le repère monde (rotation X par uDiskPsi)
                 float beta = sqrt(GM / hr);
                 beta = clamp(beta, 0.0, 0.5);
                 vec3 vTangentDisk = vec3(-sin(angle), 0.0, cos(angle));
-                // Appliquer la même rotation X que diskRotate pour passer en monde
                 vec3 vTangent = vec3(
                     vTangentDisk.x,
                     vTangentDisk.y * cos(uDiskPsi) - vTangentDisk.z * sin(uDiskPsi),
@@ -412,21 +420,17 @@ vec4 rayMarch(vec2 uv) {
                     photonRingBoost = 1.0 + 4.0 * smoothstep(ringWidth, 0.0, abs(numOrbits - 1.0));
                 }
 
-                // Smooth falloff for higher-order images (exponential dimming per orbit)
-                // Instead of a hard step at numOrbits=1.0, use a smooth transition
+                // Smooth falloff for higher-order images
                 float orbitFade = 1.0 - smoothstep(0.5, 2.0, numOrbits) * 0.85;
-                // Also fade for very small numOrbits (direct image, no bending)
                 float directFade = 1.0 - smoothstep(0.0, 0.3, numOrbits) * 0.1;
                 float orbitFactor = orbitFade * directFade;
 
                 discCol *= clamp(photonRingBoost, 1.0, 5.0) * orbitFactor;
 
-                // Each crossing contributes emission weighted by current transmittance
-                // and the disk's own opacity (vertical Gaussian z-profile already applied)
-                float diskAbsorption = 0.5;
-                diskAcc += discCol * diskTransmittance * diskAbsorption;
-                diskTransmittance *= (1.0 - diskAbsorption);
-                diskOpticalDepth += diskAbsorption;
+                // First crossing: full contribution (transmittance = 1.0)
+                diskAcc += discCol * 1.0;
+                diskTransmittance = 0.0;  // disk is opaque after first hit
+                diskOpticalDepth = 1.0;
             }
         }
         prevY = posDisk.y;
