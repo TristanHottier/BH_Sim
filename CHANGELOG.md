@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `1.5.3`).
 - **CHANGELOG**: converted `[Unreleased]` section to `[1.5.3]`, added fresh `[Unreleased]` header.
 - **version.json**: updated `commit` to `HEAD` for CI version check to resolve correctly.
+- **CI Prettier check**: ran Prettier on all 13 files that had formatting issues — all now pass `prettier --check`.
 
 ### Added
 
